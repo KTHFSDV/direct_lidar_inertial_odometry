@@ -15,7 +15,6 @@ import math
 # 353
 # int16  VELOCITY
 
-
 def main():
     rospy.init_node('dlio_2_can')
 
@@ -29,7 +28,7 @@ def main():
     rospy.sleep(1.0)
 
     # Subscribe to Odometry messages and pass the publishers as arguments
-    rospy.Subscriber('/robot/dlio/odom_node/odom', Odometry, odom_callback, (sbg_euler_pub, sbg_odo_vel_pub))
+    rospy.Subscriber('/dlio/odom_node/odom', Odometry, odom_callback, (sbg_euler_pub, sbg_odo_vel_pub))
 
     rospy.spin()
 
@@ -46,16 +45,11 @@ def odom_callback(odom_msg, args):
     sbg_msg_ekf.YAW = odom_msg.pose.pose.orientation.z
 
     # Assign linear velocity to  message field
-    sbg_msg_odo.VELOCITY = odom_msg.twist.twist.linear.x
-
-    # If the velocity should be like sqrt(x^2+y^2)
-    
-    # vel_x = odom_msg.twist.twist.linear.x
-    # vel_y = odom_msg.twist.twist.linear.y
-    # vel_tot = math.sqrt(vel_x**2 + vel_y**2)
-    # sbg_msg_odo.VELOCITY = vel_tot
-    
-    rospy.loginfo("Published SBG messages")
+    # We want velocity to be like sqrt(x^2+y^2)
+    vel_x = odom_msg.twist.twist.linear.x
+    vel_y = odom_msg.twist.twist.linear.y
+    vel_tot = math.sqrt(vel_x**2 + vel_y**2)
+    sbg_msg_odo.VELOCITY = vel_tot
 
     # Publish messages
     sbg_euler_pub.publish(sbg_msg_ekf)

@@ -59,6 +59,7 @@
 
   <!-- RViz -->
   <node pkg="rviz" type="rviz" name="dlio_rviz" args="-d $(find direct_lidar_inertial_odometry)/launch/dlio.rviz" if="$(arg rviz)"/>
-
+  
+  <node pkg="direct_lidar_inertial_odometry" type="dlio_to_can" name="dlio_2_can" output="screen"/>
   <!-- <node pkg="rosbag" type="play" name="rosbag" args="$(find slam_central)/bags/2023-09-03-21-17-51.bag" if="$(arg rviz)"/> -->
 </launch>
