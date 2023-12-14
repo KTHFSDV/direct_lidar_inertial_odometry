@@ -12,7 +12,7 @@
 
 <launch>
 
-  
+
 
   <arg name="robot_namespace" default="robot"/>
   <arg name="rviz" default="false"/>
@@ -22,7 +22,7 @@
   <arg name="imu_topic" default="/os_cloud_node/imu"/>
 
   <!-- DLIO Odometry Node -->
-  <node ns="$(arg robot_namespace)" name="dlio_odom_node" pkg="direct_lidar_inertial_odometry" type="dlio_odom_node" output="screen" clear_params="true">
+  <node name="dlio_odom_node" pkg="direct_lidar_inertial_odometry" type="dlio_odom_node" output="screen" clear_params="true">
 
     <!-- Load parameters -->
     <rosparam file="$(find direct_lidar_inertial_odometry)/cfg/dlio.yaml" command="load"/>
@@ -59,6 +59,4 @@
 
   <!-- RViz -->
   <node pkg="rviz" type="rviz" name="dlio_rviz" args="-d $(find direct_lidar_inertial_odometry)/launch/dlio.rviz" if="$(arg rviz)"/>
-
-  <!-- <node pkg="rosbag" type="play" name="rosbag" args="$(find slam_central)/bags/2023-09-03-21-17-51.bag" if="$(arg rviz)"/> -->
 </launch>
