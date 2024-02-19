@@ -88,6 +88,8 @@ namespace dlio {
 
     PCL_ADD_POINT4D;
     float intensity; // intensity
+    uint16_t reflectivity; // Reflectivity value
+    uint16_t ambient; // Ambient light value
     union {
       std::uint32_t t; // time since beginning of scan in nanoseconds
       float time; // time since beginning of scan in seconds
@@ -102,6 +104,8 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(dlio::Point,
                                  (float, y, y)
                                  (float, z, z)
                                  (float, intensity, intensity)
+                                 (uint16_t, reflectivity, reflectivity)
+                                 (uint16_t, ambient, ambient)
                                  (std::uint32_t, t, t)
                                  (float, time, time)
                                  (double, timestamp, timestamp))
