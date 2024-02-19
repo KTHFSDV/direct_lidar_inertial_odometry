@@ -340,6 +340,6 @@ private:
 
   //Misc
   bool publish_transforms;
-  bool stateHasBeenUpdated;
+  bool publish_debug;
 
 };

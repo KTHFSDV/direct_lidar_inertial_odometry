@@ -73,3 +73,4 @@ dlio:
   
   misc:
     publish_transforms: false
+    publish_debug: false
