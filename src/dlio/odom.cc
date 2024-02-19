@@ -857,83 +857,64 @@ void dlio::OdomNode::callbackPointCloud(const sensor_msgs::PointCloud2ConstPtr& 
 void dlio::OdomNode::callbackImu(const sensor_msgs::Imu::ConstPtr& imu_raw) {
 
 
-  geometry_msgs::TransformStamped transform_stamped;
   if (!this->first_imu_received) {
-    //listen for a ros transform between two frames
     try {
-    transform_stamped = tf_buffer_.lookupTransform(this->baselink_frame, this->imu_frame, ros::Time::now());
-    Eigen::Matrix3f R;
+      // Get transform from imu to baselink 
+      geometry_msgs::TransformStamped tf_imu_to_baselink;
+      tf_imu_to_baselink = tf_buffer_.lookupTransform(this->baselink_frame, this->imu_frame, ros::Time::now());
 
-    // Get quaternion from transform
-    tf2::Quaternion q(transform_stamped.transform.rotation.x, 
-                      transform_stamped.transform.rotation.y, 
-                      transform_stamped.transform.rotation.z, 
-                      transform_stamped.transform.rotation.w);
+      // Set imu translation
+      this->extrinsics.baselink2imu.t = Eigen::Vector3f(tf_imu_to_baselink.transform.translation.x,
+                                                        tf_imu_to_baselink.transform.translation.y,
+                                                        tf_imu_to_baselink.transform.translation.z);
+      // Set imu rotation
+      tf2::Quaternion q(tf_imu_to_baselink.transform.rotation.x, 
+                        tf_imu_to_baselink.transform.rotation.y, 
+                        tf_imu_to_baselink.transform.rotation.z, 
+                        tf_imu_to_baselink.transform.rotation.w);
+      Eigen::Quaternionf q_eigen(q.w(), q.x(), q.y(), q.z());
+      this->extrinsics.baselink2imu.R = q_eigen.toRotationMatrix();
+      this->extrinsics.baselink2imu_T.block(0, 3, 3, 1) = this->extrinsics.baselink2imu.t;
+      this->extrinsics.baselink2imu_T.block(0, 0, 3, 3) = this->extrinsics.baselink2imu.R;
 
-    // Convert tf2::Quaternion to Eigen::Quaternionf
-    Eigen::Quaternionf q_eigen(q.w(), q.x(), q.y(), q.z());
-    R = q_eigen.toRotationMatrix();
+      // Get transform from lidar to baselink 
+      geometry_msgs::TransformStamped tf_lidar_to_baselink;
+      tf_lidar_to_baselink = tf_buffer_.lookupTransform(this->baselink_frame, this->lidar_frame, ros::Time::now());
 
-    std::cout << "R between baselink and imu: " << std::endl << R << std::endl;
+      // Set lidar translation
+      this->extrinsics.baselink2lidar.t = Eigen::Vector3f(tf_lidar_to_baselink.transform.translation.x,
+                                                          tf_lidar_to_baselink.transform.translation.y,
+                                                          tf_lidar_to_baselink.transform.translation.z);
+      // Set lidar rotation
+      tf2::Quaternion q_lidar(tf_lidar_to_baselink.transform.rotation.x, 
+                              tf_lidar_to_baselink.transform.rotation.y, 
+                              tf_lidar_to_baselink.transform.rotation.z, 
+                              tf_lidar_to_baselink.transform.rotation.w);
+      Eigen::Quaternionf q_eigen_lidar(q_lidar.w(), q_lidar.x(), q_lidar.y(), q_lidar.z());
+      this->extrinsics.baselink2lidar.R = q_eigen_lidar.toRotationMatrix();
+      this->extrinsics.baselink2lidar_T.block(0, 3, 3, 1) = this->extrinsics.baselink2lidar.t;
+      this->extrinsics.baselink2lidar_T.block(0, 0, 3, 3) = this->extrinsics.baselink2lidar.R;
 
-    this->extrinsics.baselink2imu.R = R;
+      std::cout << std::endl 
+                << "[DLIO] Transform from IMU to baselink: " << std::endl 
+                << "Translation: " << this->extrinsics.baselink2imu.t.transpose() << std::endl
+                << "Rotation: " << std::endl << this->extrinsics.baselink2imu.R  << std::endl 
+                << std::endl;
 
-    //Get translation from transform
-    this->extrinsics.baselink2imu.t = Eigen::Vector3f(transform_stamped.transform.translation.x,
-                                                      transform_stamped.transform.translation.y,
-                                                      transform_stamped.transform.translation.z);
+      std::cout << std::endl 
+                << "[DLIO] Transform from Lidar to baselink: " << std::endl 
+                << "Translation: " << this->extrinsics.baselink2lidar.t.transpose() << std::endl
+                << "Rotation: " << std::endl << this->extrinsics.baselink2lidar.R  << std::endl 
+                << std::endl;
 
-    std::cout << "t between baselink and imu: " << std::endl << this->extrinsics.baselink2imu.t << std::endl;
-
-
-    this->extrinsics.baselink2imu_T.block(0, 3, 3, 1) = this->extrinsics.baselink2imu.t;
-    this->extrinsics.baselink2imu_T.block(0, 0, 3, 3) = this->extrinsics.baselink2imu.R;
-
-
-
-
-    transform_stamped = tf_buffer_.lookupTransform(this->baselink_frame, this->lidar_frame, ros::Time::now());
-    Eigen::Matrix3f R_lidar;
-
-    // Get quaternion from transform
-    tf2::Quaternion q_lidar(transform_stamped.transform.rotation.x, 
-                      transform_stamped.transform.rotation.y, 
-                      transform_stamped.transform.rotation.z, 
-                      transform_stamped.transform.rotation.w);
-
-    // Convert tf2::Quaternion to Eigen::Quaternionf
-    Eigen::Quaternionf q_eigen_lidar(q_lidar.w(), q_lidar.x(), q_lidar.y(), q_lidar.z());
-    R_lidar = q_eigen_lidar.toRotationMatrix();
-
-    std::cout << "R between baselink and lidar: " << std::endl << R_lidar << std::endl;
-
-    this->extrinsics.baselink2lidar.R = R_lidar;
-
-    //Get translation from transform
-    this->extrinsics.baselink2lidar.t = Eigen::Vector3f(transform_stamped.transform.translation.x,
-                                                      transform_stamped.transform.translation.y,
-                                                      transform_stamped.transform.translation.z);
-
-    std::cout << "t between baselink and lidar: " << std::endl << this->extrinsics.baselink2lidar.t << std::endl;
-
-
-    this->extrinsics.baselink2lidar_T.block(0, 3, 3, 1) = this->extrinsics.baselink2lidar.t;
-    this->extrinsics.baselink2lidar_T.block(0, 0, 3, 3) = this->extrinsics.baselink2lidar.R;
-
-
-
-    this->first_imu_received = true;
+      this->first_imu_received = true;
     }
     catch (tf2::TransformException &ex) {
-      ROS_WARN("Exception %s",ex.what());
-      std::cout << "ERROR: transform between " << this->baselink_frame << " and " << this->imu_frame << " or " << this->lidar_frame << " not found!" << std::endl;
+      ROS_WARN("[DLIO] ERROR! %s",ex.what());
       return;
     }
-
   }
   
-      
-
   sensor_msgs::Imu::Ptr imu = this->transformImu( imu_raw );
   this->imu_stamp = imu->header.stamp;
 
@@ -974,14 +955,14 @@ void dlio::OdomNode::callbackImu(const sensor_msgs::Imu::ConstPtr& imu_raw) {
       accel_avg[2] += lin_accel[2];
 
       if(print) {
-        std::cout << std::endl << " Calibrating IMU for " << this->imu_calib_time_ << " seconds... ";
+        std::cout << std::endl << "[DLIO] Calibrating IMU for " << this->imu_calib_time_ << " seconds... ";
         std::cout.flush();
         print = false;
       }
 
     } else {
 
-      std::cout << "done" << std::endl << std::endl;
+      std::cout << "[DLIO] Calibration done!" << std::endl << std::endl;
 
       gyro_avg /= num_samples;
       accel_avg /= num_samples;
@@ -1011,7 +992,7 @@ void dlio::OdomNode::callbackImu(const sensor_msgs::Imu::ConstPtr& imu_raw) {
           pitch = remainder(180.0 - pitch, 360.0);
           roll  = remainder(roll + 180.0,  360.0);
         }
-        std::cout << " Estimated initial attitude:" << std::endl;
+        std::cout << "[DLIO] Estimated initial attitude:" << std::endl;
         std::cout << "   Roll  [deg]: " << to_string_with_precision(roll, 4) << std::endl;
         std::cout << "   Pitch [deg]: " << to_string_with_precision(pitch, 4) << std::endl;
         std::cout << "   Yaw   [deg]: " << to_string_with_precision(yaw, 4) << std::endl;
@@ -1023,22 +1004,23 @@ void dlio::OdomNode::callbackImu(const sensor_msgs::Imu::ConstPtr& imu_raw) {
         // subtract gravity from avg accel to get bias
         this->state.b.accel = accel_avg - grav_vec;
 
-        std::cout << " Accel biases [xyz]: " << to_string_with_precision(this->state.b.accel[0], 8) << ", "
-                                             << to_string_with_precision(this->state.b.accel[1], 8) << ", "
-                                             << to_string_with_precision(this->state.b.accel[2], 8) << std::endl;
+        std::cout << "[DLIO] Accel biases [xyz]: " 
+                  << to_string_with_precision(this->state.b.accel[0], 8) << ", "
+                  << to_string_with_precision(this->state.b.accel[1], 8) << ", "
+                  << to_string_with_precision(this->state.b.accel[2], 8) << std::endl;
       }
 
       if (this->calibrate_gyro_) {
 
         this->state.b.gyro = gyro_avg;
 
-        std::cout << " Gyro biases  [xyz]: " << to_string_with_precision(this->state.b.gyro[0], 8) << ", "
-                                             << to_string_with_precision(this->state.b.gyro[1], 8) << ", "
-                                             << to_string_with_precision(this->state.b.gyro[2], 8) << std::endl;
+        std::cout << "[DLIO] Gyro biases  [xyz]: " 
+                  << to_string_with_precision(this->state.b.gyro[0], 8) << ", "
+                  << to_string_with_precision(this->state.b.gyro[1], 8) << ", "
+                  << to_string_with_precision(this->state.b.gyro[2], 8) << std::endl;
       }
 
       this->imu_calibrated = true;
-
 
     }
 
