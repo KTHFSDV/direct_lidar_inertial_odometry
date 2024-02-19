@@ -43,7 +43,7 @@
   </node>
 
   <!-- DLIO Mapping Node -->
-  <node ns="$(arg robot_namespace)" name="dlio_map" pkg="direct_lidar_inertial_odometry" type="dlio_map_node" output="screen" clear_params="true" if="$(arg mapping)">
+  <node name="dlio_map" pkg="direct_lidar_inertial_odometry" type="dlio_map_node" output="screen" clear_params="true" if="$(arg mapping)">
 
     <!-- Load parameters -->
     <rosparam file="$(find direct_lidar_inertial_odometry)/cfg/dlio.yaml" command="load"/>

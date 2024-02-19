@@ -37,13 +37,6 @@ void dlio::MapNode::getParams() {
   ros::param::param<double>("~dlio/map/sparse/frequency", this->publish_freq_, 1.0);
   ros::param::param<double>("~dlio/map/sparse/leafSize", this->leaf_size_, 0.5);
 
-  // Get Node NS and Remove Leading Character
-  std::string ns = ros::this_node::getNamespace();
-  ns.erase(0,1);
-
-  // Concatenate Frame Name Strings
-  this->odom_frame = ns + "/" + this->odom_frame;
-
 }
 
 void dlio::MapNode::start() {
