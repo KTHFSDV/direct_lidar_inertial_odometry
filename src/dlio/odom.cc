@@ -25,6 +25,7 @@ dlio::OdomNode::OdomNode(ros::NodeHandle node_handle) : nh(node_handle), tf_list
   else {this->imu_calibrated = true;}
   this->deskew_status = false;
   this->deskew_size = 0;
+  this->stateHasBeenUpdated = false;
 
   this->lidar_sub = this->nh.subscribe("pointcloud", 1,
       &dlio::OdomNode::callbackPointCloud, this, ros::TransportHints().tcpNoDelay());
@@ -173,10 +174,24 @@ void dlio::OdomNode::getParams() {
   ros::param::param<std::string>("~dlio/frames/lidar", this->lidar_frame, "lidar");
   ros::param::param<std::string>("~dlio/frames/imu", this->imu_frame, "imu");
 
+
+  // Get Node NS and Remove Leading Character
+  std::string ns = ros::this_node::getNamespace();
+  ns.erase(0,1);
+  // Concatenate Frame Name Strings (if there is one)
+  if (ns.compare("") != 0 && !ns.empty()) {
+    //Append to frames if we have namespace
+    this->odom_frame = ns + "/" + this->odom_frame;
+    this->baselink_frame = ns + "/" + this->baselink_frame;
+    this->lidar_frame = ns + "/" + this->lidar_frame;
+    this->imu_frame = ns + "/" + this->imu_frame;
+  }
   std::cout << "odom_frame: " << this->odom_frame << std::endl;
   std::cout << "baselink_frame: " << this->baselink_frame << std::endl;
   std::cout << "lidar_frame: " << this->lidar_frame << std::endl;
   std::cout << "imu_frame: " << this->imu_frame << std::endl;
+
+
 
   // Deskew FLag
   ros::param::param<bool>("~dlio/pointcloud/deskew", this->deskew_, true);
@@ -211,7 +226,6 @@ void dlio::OdomNode::getParams() {
 
   // Misc
   ros::param::param<bool>("~dlio/misc/publish_transforms", this->publish_transforms, true);
-  ros::param::param<bool>("~dlio/misc/publish_debug", this->publish_debug, false);
 
   // Extrinsics
   std::vector<float> t_default{0., 0., 0.};
@@ -296,6 +310,7 @@ void dlio::OdomNode::getParams() {
   ros::param::param<double>("~dlio/odom/geo/Kgb", this->geo_Kgb_, 1.0);
   ros::param::param<double>("~dlio/odom/geo/abias_max", this->geo_abias_max_, 1.0);
   ros::param::param<double>("~dlio/odom/geo/gbias_max", this->geo_gbias_max_, 1.0);
+
 
 }
 
@@ -430,6 +445,8 @@ void dlio::OdomNode::publishToROS(pcl::PointCloud<PointType>::ConstPtr published
 
     // br.sendTransform(transformStamped);
   }
+
+
 }
 
 void dlio::OdomNode::publishCloud(pcl::PointCloud<PointType>::ConstPtr published_cloud, Eigen::Matrix4f T_cloud) {
@@ -830,10 +847,8 @@ void dlio::OdomNode::callbackPointCloud(const sensor_msgs::PointCloud2ConstPtr& 
   this->gicp_hasConverged = this->gicp.hasConverged();
 
   // Debug statements and publish custom DLIO message
-  if (this->publish_debug) {
-    this->debug_thread = std::thread( &dlio::OdomNode::debug, this );
-    this->debug_thread.detach();
-  }
+  this->debug_thread = std::thread( &dlio::OdomNode::debug, this );
+  this->debug_thread.detach();
 
   this->geo.first_opt_done = true;
 
@@ -1402,6 +1417,8 @@ void dlio::OdomNode::updateState() {
   this->geo.prev_p = this->state.p;
   this->geo.prev_q = this->state.q;
   this->geo.prev_vel = this->state.v.lin.w;
+
+  this->stateHasBeenUpdated = true;
 
 }
 
