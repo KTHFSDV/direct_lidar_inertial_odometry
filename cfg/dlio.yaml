@@ -21,15 +21,15 @@ dlio:
     voxelize: true
 
   imu:
-    calibration: true
+    calibration: false
     intrinsics:
       accel:
-        bias: [ 0.0, 0.0, 0.0 ]
+        bias: [ 0.00077470, -0.00459564, 0.10800362 ]
         sm:   [ 1.,  0.,  0.,
                 0.,  1.,  0.,
                 0.,  0.,  1. ]
       gyro:
-        bias: [ 0.0, 0.0, 0.0 ]
+        bias: [ -0.01176701, 0.03894851, 0.01847756 ]
 
   extrinsics:
     baselink2imu:

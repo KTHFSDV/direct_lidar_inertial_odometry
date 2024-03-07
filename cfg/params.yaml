@@ -24,7 +24,7 @@ dlio:
       filtered: false
     sparse:
       frequency: 1.0
-      leafSize: 3.25
+      leafSize: 1.25
 
   odom:
 
@@ -33,16 +33,16 @@ dlio:
     imu:
       approximateGravity: false
       calibration:
-        gyro: true
-        accel: true
-        time: 1
+        gyro: false
+        accel: false
+        time: 3
       bufferSize: 5000
 
     preprocessing:
       cropBoxFilter:
-        size: 7.0
+        size: 4.0
       voxelFilter:
-        res: 2.25
+        res: 1.25
 
     keyframe:
       threshD: 1.0
@@ -57,7 +57,7 @@ dlio:
       minNumPoints: 64
       kCorrespondences: 16
       maxCorrespondenceDistance: 0.5
-      maxIterations: 16
+      maxIterations: 32
       transformationEpsilon: 0.01
       rotationEpsilon: 0.01
       initLambdaFactor: 1e-9
