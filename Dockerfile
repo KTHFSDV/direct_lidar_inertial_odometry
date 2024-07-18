@@ -6,13 +6,47 @@
 # FROM ros:noetic-ros-base-focal
 # FROM dustynv/ros:noetic-ros-base-l4t-r32.4.4
 # FROM ros:melodic-ros-base-bionic       ####<--- TODO: change to your base image
+# FROM ros:noetic-ros-base-focal
+# FROM nvidia/cuda:11.1.1-base-ubuntu20.04
 FROM ros:noetic-ros-base-focal
+
+# # setup timezone
+# RUN echo 'Etc/UTC' > /etc/timezone && \
+#     ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
+#     apt-get update && \
+#     apt-get install -q -y --no-install-recommends tzdata && \
+#     rm -rf /var/lib/apt/lists/*
+
+# install packages
+RUN apt-get update && apt-get install -q -y --no-install-recommends \
+    dirmngr \
+    gnupg2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# setup keys
+RUN apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
+
+# setup sources.list
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu focal main" > /etc/apt/sources.list.d/ros-latest.list'
+
+
+# setup environment
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
+
+ENV ROS_DISTRO noetic
+
+# install ros packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-noetic-desktop-full \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV ROS_ROOT=/opt/ros/noetic   
 #ENV ROS_ROOT=/opt/ros/melodic          ###<--- TODO: change to your ROS version to mach base image
 
 # Set upp workspace variables
 ENV ROS_PACKAGE_NAME=${PACKAGE_NAME}
+
 
 # Set upp workspace
 RUN mkdir -p /ws/src   
@@ -26,9 +60,14 @@ RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y \
     git \
     nano \
+	mesa-utils \ 
+	iputils-ping \ 
+	apt-transport-https ca-certificates \
+	openssh-server python3-pip exuberant-ctags \
+	git vim tmux nano htop sudo curl wget gnupg2 \
+	bash-completion \
     cmake \
     python3-pip \
-    # ros-noetic-ros-numpy \
     libeigen3-dev \
     libomp-dev \
     libpcl-dev \
@@ -37,13 +76,6 @@ RUN apt-get update && apt-get upgrade -y && \
     ros-noetic-pcl-ros \
     libomp-dev \
     ros-noetic-tf2-eigen \
-    # EXAMPLE: \
-    # build-essential \
-    # libssl-dev \
-    # libffi-dev \
-    # python3-setuptools \
-    # python3-venv \
-    # python3-tk \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

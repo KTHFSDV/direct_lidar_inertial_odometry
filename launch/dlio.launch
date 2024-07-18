@@ -42,6 +42,10 @@
 
   </node>
 
+  <node pkg="tf2_ros" type="static_transform_publisher" name="static_tf_map_to_odom" args="0 0 0 0 0 0 map odom" />
+  <node pkg="tf2_ros" type="static_transform_publisher" name="static_tf_base_link_to_os_sensor"   
+  args=" 0.467 0 1   1 0 0 0 base_link os_sensor" />
+
   <!-- DLIO Mapping Node -->
   <node ns="$(arg robot_namespace)" name="dlio_map" pkg="direct_lidar_inertial_odometry" type="dlio_map_node" output="screen" clear_params="true" if="$(arg mapping)">
 

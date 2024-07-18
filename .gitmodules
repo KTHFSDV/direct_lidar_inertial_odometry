@@ -1,0 +1,6 @@
+[submodule "src/--recursive"]
+	path = src/--recursive
+	url = git@github.com:SMRT-AIST/fast_gicp.git
+[submodule "src/fast_gicp"]
+	path = src/fast_gicp
+	url = git@github.com:SMRT-AIST/fast_gicp.git

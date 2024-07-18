@@ -18,4 +18,4 @@ else
 fi
 
 
-exec "$@"
+exec tail -f /dev/null
