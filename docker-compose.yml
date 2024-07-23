@@ -20,6 +20,14 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     runtime: nvidia 
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+
     environment:
       - PACKAGE_NAME=direct_lidar_inertial_odometry
       - ROS_MASTER_URI=http://localhost:11311
@@ -31,9 +39,11 @@ services:
     entrypoint: /ws/src/direct_lidar_inertial_odometry/docker-entrypoint.sh 
     command: bash -c "source devel/setup.bash && roslaunch direct_lidar_inertial_odometry dlio.launch"
 
+
 networks:
   ros_network:
     driver: bridge
+
 
 
 
