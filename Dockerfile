@@ -6,10 +6,11 @@
 # FROM ros:noetic-ros-base-focal
 # FROM dustynv/ros:noetic-ros-base-l4t-r32.4.4
 # FROM ros:melodic-ros-base-bionic       ####<--- TODO: change to your base image
-FROM ros:noetic-ros-base-focal
+# FROM ros:noetic-ros-base-focal
 # FROM nvidia/cuda:11.1.1-base-ubuntu20.04
 # FROM nvidia/cuda:11.1-devel-ubuntu20.04
 # FROM nvidia/cuda:11.1.1-base-ubuntu20.04
+from dustynv/ros:noetic-ros-base-l4t-r35.4.1
 
 # # # setup timezone
 # RUN echo 'Etc/UTC' > /etc/timezone && \
@@ -37,10 +38,10 @@ ENV LC_ALL C.UTF-8
 
 ENV ROS_DISTRO noetic
 
-# install ros packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-noetic-desktop-full \
-    && rm -rf /var/lib/apt/lists/*
+# # install ros packages
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     ros-noetic-desktop-full \
+#     && rm -rf /var/lib/apt/lists/*
 
 ENV ROS_ROOT=/opt/ros/noetic   
 #ENV ROS_ROOT=/opt/ros/melodic          ###<--- TODO: change to your ROS version to mach base image
@@ -82,11 +83,15 @@ RUN apt-get update && apt-get upgrade -y && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# ENV CUDA_VERSION=11.1
 
-RUN    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.1-1_all.deb
-RUN    dpkg -i cuda-keyring_1.1-1_all.deb
-RUN    apt-get update
-RUN    apt-get -y install cuda-toolkit-11-1
+# RUN wget https://developer.download.nvidia.com/compute/cuda/11.1.0/local_installers/cuda_11.1.0_455.23.05_linux.run
+# RUN sh cuda_11.1.0_455.23.05_linux.run
+
+# RUN    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.1-1_all.deb
+# RUN    dpkg -i cuda-keyring_1.1-1_all.deb
+# RUN    apt-get update
+# RUN    apt-get -y install cuda-toolkit-11-1
 
 # RUN curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg 
 # RUN curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
