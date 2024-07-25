@@ -77,6 +77,9 @@ std::string to_string_with_precision(const T a_value, const int n = 6)
 // #include <direct_lidar_inertial_odometry/save_pcd.h>
 #include <nano_gicp/nano_gicp.h>  
 
+#include <fast_gicp/ndt/ndt_cuda.hpp>
+#include <fast_gicp/gicp/fast_vgicp_cuda.hpp>
+
 namespace dlio {
   enum class SensorType { OUSTER, VELODYNE, HESAI, UNKNOWN };
 

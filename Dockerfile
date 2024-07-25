@@ -77,6 +77,7 @@ RUN apt-get update && apt-get upgrade -y && \
     python3-catkin-tools \
     python3-osrf-pycommon \
     ros-noetic-pcl-ros \
+    ros-noetic-nav-msgs \
     libomp-dev \
     ros-noetic-tf2-eigen \
     && rm -rf /var/lib/apt/lists/* \

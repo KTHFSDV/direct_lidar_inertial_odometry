@@ -48,7 +48,12 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   tf2
   tf2_eigen
+  fast_gicp
 )
+
+if(BUILD_VGICP_CUDA)
+  add_definitions(-DUSE_VGICP_CUDA)
+endif()
 
 add_service_files(
   DIRECTORY srv
@@ -104,6 +109,7 @@ add_library(nano_gicp STATIC
   src/nano_gicp/nano_gicp.cc
 )
 target_link_libraries(nano_gicp ${PCL_LIBRARIES} ${OpenMP_LIBS} nanoflann)
+
 
 # Odometry Node
 add_executable(dlio_odom_node src/dlio/odom_node.cc src/dlio/odom.cc)
