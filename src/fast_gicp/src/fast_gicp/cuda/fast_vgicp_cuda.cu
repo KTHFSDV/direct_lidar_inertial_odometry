@@ -188,6 +188,7 @@ void FastVGICPCudaCore::calculate_source_covariances(RegularizationMethod method
     source_covariances.reset(new thrust::device_vector<Eigen::Matrix3f>(source_points->size()));
   }
   covariance_estimation(*source_points, k, *source_neighbors, *source_covariances);
+  
   covariance_regularization(*source_points, *source_covariances, method);
 }
 

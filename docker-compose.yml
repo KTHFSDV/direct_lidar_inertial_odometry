@@ -35,6 +35,7 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
     volumes:
       - ./:/ws/src/direct_lidar_inertial_odometry
+      - ./src/fast_gicp:/ws/src/fast_gicp
     network_mode: host
     entrypoint: /ws/src/direct_lidar_inertial_odometry/docker-entrypoint.sh 
     command: bash -c "source devel/setup.bash && roslaunch direct_lidar_inertial_odometry dlio.launch"

@@ -66,14 +66,20 @@ void FastGICPMultiPoints<PointSource, PointTarget>::setRegularizationMethod(Regu
 
 template<typename PointSource, typename PointTarget>
 void FastGICPMultiPoints<PointSource, PointTarget>::setInputSource(const PointCloudSourceConstPtr& cloud) {
+  std::cout << "setInputSource" << std::endl;
+
   pcl::Registration<PointSource, PointTarget, Scalar>::setInputSource(cloud);
+  
   calculate_covariances(*cloud, source_kdtree, source_covs);
+  std::cout << "setInputSource end" << std::endl;
 }
 
 template<typename PointSource, typename PointTarget>
 void FastGICPMultiPoints<PointSource, PointTarget>::setInputTarget(const PointCloudTargetConstPtr& cloud) {
+  std::cout << "setInputTarget" << std::endl;
   pcl::Registration<PointSource, PointTarget, Scalar>::setInputTarget(cloud);
   calculate_covariances(cloud, target_kdtree, target_covs);
+  std::cout << "setInputTarget end" << std::endl;
 }
 
 template<typename PointSource, typename PointTarget>

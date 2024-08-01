@@ -392,3 +392,5 @@ bool NanoGICP<PointSource, PointTarget>::calculate_covariances(
 }
 
 }  // namespace nano_gicp
+
+

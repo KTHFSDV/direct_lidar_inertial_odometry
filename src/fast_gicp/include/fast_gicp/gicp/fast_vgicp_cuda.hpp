@@ -18,6 +18,8 @@ namespace cuda {
 class FastVGICPCudaCore;
 }
 
+typedef std::vector<Eigen::Matrix3f, Eigen::aligned_allocator<Eigen::Matrix3f>> CovarianceList;
+
 enum class NearestNeighborMethod { CPU_PARALLEL_KDTREE, GPU_BRUTEFORCE, GPU_RBF_KERNEL };
 
 /**
@@ -66,6 +68,21 @@ public:
 
   virtual void setInputSource(const PointCloudSourceConstPtr& cloud) override;
   virtual void setInputTarget(const PointCloudTargetConstPtr& cloud) override;
+  virtual void setTargetCovariances(const std::shared_ptr<const CovarianceList>& covs);
+
+  virtual void registerInputSource(const PointCloudSourceConstPtr& cloud);
+  virtual void registerInputTarget(const PointCloudTargetConstPtr& cloud);
+
+  std::shared_ptr<const CovarianceList> getSourceCovariances() const {
+    return source_covs_;
+  }
+
+  std::shared_ptr<const CovarianceList> getTargetCovariances() const {
+    return target_covs_;
+  }
+
+  virtual bool calculateSourceCovariances();
+  virtual bool calculateTargetCovariances();
 
 protected:
   virtual void computeTransformation(PointCloudSource& output, const Matrix4& guess) override;
@@ -75,6 +92,9 @@ protected:
   template<typename PointT>
   std::vector<int> find_neighbors_parallel_kdtree(int k, typename pcl::PointCloud<PointT>::ConstPtr cloud) const;
 
+  template<typename PointT>
+  bool calculate_covariances(const typename pcl::PointCloud<PointT>::ConstPtr& cloud, const pcl::search::KdTree<PointT>& kdtree, CovarianceList& covariances, float& density);
+
 private:
   int k_correspondences_;
   double voxel_resolution_;
@@ -82,6 +102,19 @@ private:
   NearestNeighborMethod neighbor_search_method_;
 
   std::unique_ptr<cuda::FastVGICPCudaCore> vgicp_cuda_;
+
+protected:
+  int num_threads_;
+
+public:
+  std::shared_ptr<const pcl::search::KdTree<PointSource>> source_kdtree_;
+  std::shared_ptr<const pcl::search::KdTree<PointTarget>> target_kdtree_;
+
+  std::shared_ptr<const CovarianceList> source_covs_;
+  std::shared_ptr<const CovarianceList> target_covs_;
+
+  float source_density_;
+  float target_density_;
 };
 
 }  // namespace fast_gicp

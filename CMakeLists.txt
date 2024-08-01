@@ -1,27 +1,16 @@
-###########################################################
-#                                                         #
-# Copyright (c)                                           #
-#                                                         #
-# The Verifiable & Control-Theoretic Robotics (VECTR) Lab #
-# University of California, Los Angeles                   #
-#                                                         #
-# Authors: Kenny J. Chen, Ryan Nemiroff, Brett T. Lopez   #
-# Contact: {kennyjchen, ryguyn, btlopez}@ucla.edu         #
-#                                                         #
-###########################################################
-
 cmake_minimum_required(VERSION 3.10.2)
 project(direct_lidar_inertial_odometry)
 
-add_compile_options(-std=c++14)
+add_compile_options(-std=c++17)
 set(CMAKE_BUILD_TYPE "Release")
+option(BUILD_VGICP_CUDA "Build GPU-powered VGICP" ON)
 
-find_package( PCL REQUIRED )
+find_package(PCL REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 link_directories(${PCL_LIBRARY_DIRS})
 
-find_package( Eigen3 REQUIRED )
+find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 
 include(FindOpenMP)
@@ -48,7 +37,18 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   tf2
   tf2_eigen
+  fast_gicp
 )
+
+# Add these lines after find_package
+if(NOT fast_gicp_LIBRARIES)
+  message(FATAL_ERROR "fast_gicp libraries not found. Please make sure fast_gicp is installed correctly.")
+endif()
+
+
+include_directories(${fast_gicp_INCLUDE_DIRS})
+
+
 
 add_service_files(
   DIRECTORY srv
@@ -78,9 +78,10 @@ catkin_package(
     ${PROJECT_NAME}
     nano_gicp
     nanoflann
+    ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
-include_directories(include)
+include_directories(include ${CATKIN_PACKAGE_LIB_DESTINATION})
 include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 
 # Not all machines have <cpuid.h> available
@@ -103,16 +104,34 @@ add_library(nano_gicp STATIC
   src/nano_gicp/lsq_registration.cc
   src/nano_gicp/nano_gicp.cc
 )
-target_link_libraries(nano_gicp ${PCL_LIBRARIES} ${OpenMP_LIBS} nanoflann)
+target_link_libraries(nano_gicp ${PCL_LIBRARIES} ${OpenMP_LIBS} nanoflann )
+
+find_package(CUDA REQUIRED)
+include_directories(${CUDA_INCLUDE_DIRS})
+link_directories(${CUDA_LIBRARY_DIRS})
+
+
+find_library(FAST_GICP_LIB fast_gicp HINTS ${fast_gicp_DIR}/../../../lib)
+find_library(FAST_VGICP_CUDA_LIB fast_vgicp_cuda HINTS ${fast_gicp_DIR}/../../../lib)
+
+if(NOT FAST_GICP_LIB)
+  message(FATAL_ERROR "fast_gicp library not found")
+endif()
+
+if(NOT FAST_VGICP_CUDA_LIB)
+  message(FATAL_ERROR "fast_vgicp_cuda library not found")
+endif()
+
+
 
 # Odometry Node
 add_executable(dlio_odom_node src/dlio/odom_node.cc src/dlio/odom.cc)
-add_dependencies(dlio_odom_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
+add_dependencies(dlio_odom_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp )
 target_compile_options(dlio_odom_node PRIVATE ${OpenMP_FLAGS})
-target_link_libraries(dlio_odom_node ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenMP_LIBS} Threads::Threads nano_gicp)
+target_link_libraries(dlio_odom_node ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenMP_LIBS} Threads::Threads nano_gicp ${CUDA_LIBRARIES} ${FAST_GICP_LIB} ${FAST_VGICP_CUDA_LIB})
 
 # Mapping Node
-add_executable (dlio_map_node src/dlio/map_node.cc src/dlio/map.cc)
+add_executable(dlio_map_node src/dlio/map_node.cc src/dlio/map.cc)
 add_dependencies(dlio_map_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
 target_compile_options(dlio_map_node PRIVATE ${OpenMP_FLAGS})
 target_link_libraries(dlio_map_node ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenMP_LIBS} Threads::Threads)

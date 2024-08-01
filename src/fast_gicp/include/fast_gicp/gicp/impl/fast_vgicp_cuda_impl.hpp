@@ -23,7 +23,7 @@ FastVGICPCuda<PointSource, PointTarget>::FastVGICPCuda() : LsqRegistration<Point
   this->reg_name_ = "FastVGICPCuda";
   k_correspondences_ = 20;
   voxel_resolution_ = 1.0;
-  regularization_method_ = RegularizationMethod::PLANE;
+  regularization_method_ = RegularizationMethod::NONE;
   neighbor_search_method_ = NearestNeighborMethod::CPU_PARALLEL_KDTREE;
 
   vgicp_cuda_.reset(new cuda::FastVGICPCudaCore());
@@ -99,6 +99,7 @@ void FastVGICPCuda<PointSource, PointTarget>::setInputSource(const PointCloudSou
       std::vector<int> neighbors = find_neighbors_parallel_kdtree<PointSource>(k_correspondences_, cloud);
       vgicp_cuda_->set_source_neighbors(k_correspondences_, neighbors);
       vgicp_cuda_->calculate_source_covariances(regularization_method_);
+      
     } break;
     case NearestNeighborMethod::GPU_BRUTEFORCE:
       vgicp_cuda_->find_source_neighbors(k_correspondences_);
@@ -109,6 +110,139 @@ void FastVGICPCuda<PointSource, PointTarget>::setInputSource(const PointCloudSou
       break;
   }
 }
+
+template <typename PointSource, typename PointTarget>
+void FastVGICPCuda<PointSource, PointTarget>::registerInputSource(const PointCloudSourceConstPtr& cloud) {
+  if (input_ == cloud) {
+    return;
+  }
+  pcl::Registration<PointSource, PointTarget, Scalar>::setInputSource(cloud);
+}
+
+template <typename PointSource, typename PointTarget>
+void FastVGICPCuda<PointSource, PointTarget>::registerInputTarget(const PointCloudTargetConstPtr& cloud) {
+  if (target_ == cloud) {
+    return;
+  }
+  pcl::Registration<PointSource, PointTarget, Scalar>::setInputTarget(cloud);
+}
+
+// TODO : REFACTOR THIS TO USE GPU
+template <typename PointSource, typename PointTarget>
+bool FastVGICPCuda<PointSource, PointTarget>::calculateSourceCovariances() {
+  std::cout << "calculateSourceCovariances" << std::endl;
+  std::shared_ptr<CovarianceList> source_covs = std::make_shared<CovarianceList>();
+  std::shared_ptr<float> source_density = std::make_shared<float>();
+  bool ret = calculate_covariances(input_, *source_kdtree_, *source_covs, *source_density);
+  // CovarianceList cov;
+  // vgicp_cuda_->get_source_covariances(cov);
+  // *source_covs_ = cov.cast<double>();
+  source_covs_ = source_covs;
+  source_density_ = *source_density;
+  std::cout << "calculateSourceCovariances finished" << std::endl;
+  return ret;
+}
+
+// TODO : REFACTOR THIS TO USE GPU
+template <typename PointSource, typename PointTarget>
+bool FastVGICPCuda<PointSource, PointTarget>::calculateTargetCovariances() {
+  std::cout << "calculateTargetCovariances" << std::endl;
+  std::shared_ptr<CovarianceList> target_covs = std::make_shared<CovarianceList>();
+  std::shared_ptr<float> target_density = std::make_shared<float>();
+  bool ret = calculate_covariances(target_, *target_kdtree_, *target_covs, *target_density);
+  target_covs_ = target_covs;
+  target_density_ = *target_density;
+  std::cout << "calculateTargetCovariances finished" << std::endl;
+  return ret;
+}
+
+
+// TODO : THIS SHOULD BE REMOVED ALTOGETHER
+// So instead you call calculate_source_covariances through the vgicp_cuda
+template <typename PointSource, typename PointTarget>
+template <typename PointT>
+bool FastVGICPCuda<PointSource, PointTarget>::calculate_covariances(
+  const typename pcl::PointCloud<PointT>::ConstPtr& cloud,
+  const pcl::search::KdTree<PointT>& kdtree,
+  CovarianceList& covariances,
+  float& density) {
+
+  std::cout << "calculate_covariances" << std::endl;
+
+//   covariances.resize(cloud->size());
+//   float sum_k_sq_distances = 0.0;
+
+//   std::cout << "step 1 done, starting pragma for loop " << std::endl;
+
+//   std::cout << "num_threads_: " << num_threads_ << std::endl;
+
+// #pragma omp parallel for num_threads(1) schedule(guided, 1) reduction(+:sum_k_sq_distances)
+//   for (int i = 0; i < cloud->size(); i++) {
+//     std::cout << "i: " << i << std::endl;
+//     std::vector<int> k_indices;
+//     std::vector<float> k_sq_distances;
+//     kdtree.nearestKSearch(cloud->at(i), k_correspondences_, k_indices, k_sq_distances);
+
+//     std::cout << "for loop 1" << std::endl;
+
+//     const int normalization = ((k_correspondences_ - 1) * (2 + k_correspondences_)) / 2;
+//     sum_k_sq_distances += std::accumulate(k_sq_distances.begin()+1, k_sq_distances.end(), 0.0) / normalization;
+
+//     std::cout << "for loop 2" << std::endl;
+
+//     Eigen::Matrix<double, 4, -1> neighbors(4, k_correspondences_);
+//     for (int j = 0; j < k_indices.size(); j++) {
+//       neighbors.col(j) = cloud->at(k_indices[j]).getVector4fMap().template cast<double>();
+//     }
+
+//     std::cout << "for loop 3" << std::endl;
+
+//     neighbors.colwise() -= neighbors.rowwise().mean().eval();
+//     Eigen::Matrix4d cov = neighbors * neighbors.transpose() / k_correspondences_;
+
+//     std::cout << "for loop 4" << std::endl;
+
+//     if (regularization_method_ == RegularizationMethod::NONE) {
+//       covariances[i] = cov;
+//     } else if (regularization_method_ == RegularizationMethod::FROBENIUS) {
+//       double lambda = 1e-3;
+//       Eigen::Matrix3d C = cov.block<3, 3>(0, 0).cast<double>() + lambda * Eigen::Matrix3d::Identity();
+//       Eigen::Matrix3d C_inv = C.inverse();
+//       covariances[i].setZero();
+//       covariances[i].template block<3, 3>(0, 0) = (C_inv / C_inv.norm()).inverse();
+//     } else {
+//       Eigen::JacobiSVD<Eigen::Matrix3d> svd(cov.block<3, 3>(0, 0), Eigen::ComputeFullU | Eigen::ComputeFullV);
+//       Eigen::Vector3d values;
+
+//       switch (regularization_method_) {
+//         default:
+//           std::cerr << "here must not be reached" << std::endl;
+//           abort();
+//         case RegularizationMethod::PLANE:
+//           values = Eigen::Vector3d(1, 1, 1e-3);
+//           break;
+//         case RegularizationMethod::MIN_EIG:
+//           values = svd.singularValues().array().max(1e-3);
+//           break;
+//         case RegularizationMethod::NORMALIZED_MIN_EIG:
+//           values = svd.singularValues() / svd.singularValues().maxCoeff();
+//           values = values.array().max(1e-3);
+//           break;
+//       }
+
+//       covariances[i].setZero();
+//       covariances[i].template block<3, 3>(0, 0) = svd.matrixU() * values.asDiagonal() * svd.matrixV().transpose();
+//     }
+//     std::cout << "i: " << i << " done" << std::endl;
+//   }
+
+//   density = sum_k_sq_distances / cloud->size();
+
+//   std::cout << "calculate_covariances finished" << std::endl;
+
+  return true;
+}
+
 
 template<typename PointSource, typename PointTarget>
 void FastVGICPCuda<PointSource, PointTarget>::setInputTarget(const PointCloudTargetConstPtr& cloud) {
@@ -138,6 +272,11 @@ void FastVGICPCuda<PointSource, PointTarget>::setInputTarget(const PointCloudTar
       break;
   }
   vgicp_cuda_->create_target_voxelmap();
+}
+
+template <typename PointSource, typename PointTarget>
+void FastVGICPCuda<PointSource, PointTarget>::setTargetCovariances(const std::shared_ptr<const CovarianceList>& covs) {
+  target_covs_ = covs;
 }
 
 template<typename PointSource, typename PointTarget>

@@ -73,6 +73,7 @@ RUN apt-get update && apt-get upgrade -y && \
     libeigen3-dev \
     libomp-dev \
     libpcl-dev \
+    ros-noetic-nav-msgs \
     python3-catkin-tools \
     python3-osrf-pycommon \
     ros-noetic-pcl-ros \

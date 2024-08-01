@@ -737,7 +737,7 @@ void dlio::OdomNode::initializeInputTarget() {
 
 void dlio::OdomNode::setInputSource() {
   this->gicp.setInputSource(this->current_scan);
-  this->gicp.calculateSourceCovariances();
+  // this->gicp.calculateSourceCovariances();
 }
 
 void dlio::OdomNode::initializeDLIO() {
@@ -1812,7 +1812,7 @@ void dlio::OdomNode::buildSubmap(State vehicle_state) {
 
     // reinitialize submap cloud and normals
     pcl::PointCloud<PointType>::Ptr submap_cloud_ (boost::make_shared<pcl::PointCloud<PointType>>());
-    std::shared_ptr<nano_gicp::CovarianceList> submap_normals_ (std::make_shared<nano_gicp::CovarianceList>());
+    std::shared_ptr<fast_gicp::CovarianceList> submap_normals_ (std::make_shared<fast_gicp::CovarianceList>());
 
     for (auto k : this->submap_kf_idx_curr) {
 
@@ -1846,7 +1846,7 @@ void dlio::OdomNode::buildKeyframesAndSubmap(State vehicle_state) {
 
   for (int i = this->num_processed_keyframes; i < this->keyframes.size(); i++) {
     pcl::PointCloud<PointType>::ConstPtr raw_keyframe = this->keyframes[i].second;
-    std::shared_ptr<const nano_gicp::CovarianceList> raw_covariances = this->keyframe_normals[i];
+    std::shared_ptr<const fast_gicp::CovarianceList> raw_covariances = this->keyframe_normals[i];
     Eigen::Matrix4f T = this->keyframe_transformations[i];
     lock.unlock();
 
@@ -1855,9 +1855,10 @@ void dlio::OdomNode::buildKeyframesAndSubmap(State vehicle_state) {
     pcl::PointCloud<PointType>::Ptr transformed_keyframe (boost::make_shared<pcl::PointCloud<PointType>>());
     pcl::transformPointCloud (*raw_keyframe, *transformed_keyframe, T);
 
-    std::shared_ptr<nano_gicp::CovarianceList> transformed_covariances (std::make_shared<nano_gicp::CovarianceList>(raw_covariances->size()));
+    std::shared_ptr<fast_gicp::CovarianceList> transformed_covariances (std::make_shared<fast_gicp::CovarianceList>(raw_covariances->size()));
+    // TODO : HOW TO FIX THIS IF COV IS 3D!?
     std::transform(raw_covariances->begin(), raw_covariances->end(), transformed_covariances->begin(),
-                   [&Td](Eigen::Matrix4d cov) { return Td * cov * Td.transpose(); });
+                   [&Td](Eigen::Matrix3d cov) { return Td * cov * Td.transpose(); });
 
     ++this->num_processed_keyframes;
 

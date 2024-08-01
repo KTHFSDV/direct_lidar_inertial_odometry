@@ -8,6 +8,8 @@ option(BUILD_PYTHON_BINDINGS "Build python bindings" OFF)
 
 set(CMAKE_BUILD_TYPE "Release")
 
+add_compile_options(-std=c++17)
+
 find_package(PCL REQUIRED)
 find_package(Eigen3 REQUIRED)
 add_definitions(${PCL_DEFINITIONS})
