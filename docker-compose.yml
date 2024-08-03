@@ -3,39 +3,22 @@ version: '3.8'
 ### -----------ROS MASTER----------------- ###
 # Do not edit! Works with melodic and noetic
 services:
-  master:
-    container_name: 
-      master-container
-    image: ros:noetic-ros-core-focal
-    environment:
-      - ROS_DISTRO=noetic
-    restart: unless-stopped
-    networks:
-      - ros_network
-    command: bash -c "source /opt/ros/noetic/setup.bash && roscore"
+
 
 ### -----------PACKAGE----------------- ###
   direct_lidar_inertial_odometry:
-    depends_on:
-      - master
     build:
       context: ./
       dockerfile: Dockerfile
     restart: unless-stopped
-    #runtime: nvidia 
     environment:
       - PACKAGE_NAME=direct_lidar_inertial_odometry
-      - ROS_MASTER_URI=http://master:11311 
     volumes:
       - ./:/ws/src/direct_lidar_inertial_odometry
-    networks:
-      - ros_network
+    network_mode: host
     entrypoint: /ws/src/direct_lidar_inertial_odometry/docker-entrypoint.sh 
-    command: bash -c "source devel/setup.bash && roslaunch --wait --log direct_lidar_inertial_odometry dlio.launch"
+    command: bash -c "source devel/setup.bash && sleep infinity"
 
-networks:
-  ros_network:
-    driver: bridge
 
 
 

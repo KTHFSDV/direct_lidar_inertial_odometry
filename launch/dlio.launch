@@ -12,8 +12,6 @@
 
 <launch>
 
-
-
   <arg name="robot_namespace" default="robot"/>
   <arg name="rviz" default="false"/>
   <arg name="mapping" default="false"/>
@@ -39,7 +37,6 @@
     <remap from="~kf_pose"  to="dlio/odom_node/keyframes"/>
     <remap from="~kf_cloud" to="dlio/odom_node/pointcloud/keyframe"/>
     <remap from="~deskewed" to="dlio/odom_node/pointcloud/deskewed"/>
-
   </node>
 
   <!-- DLIO Mapping Node -->
