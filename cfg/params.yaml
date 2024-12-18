@@ -18,13 +18,13 @@ dlio:
     lidar: os_sensor
     imu: os_imu
 
-  map:
-    waitUntilMove: true
-    dense:
-      filtered: false
-    sparse:
-      frequency: 1.0
-      leafSize: 1.25
+  # map:
+  #   waitUntilMove: true
+  #   dense:
+  #     filtered: false
+  #   sparse:
+  #     frequency: 1.0
+  #     leafSize: 0.5
 
   odom:
 
@@ -33,16 +33,16 @@ dlio:
     imu:
       approximateGravity: false
       calibration:
-        gyro: false
-        accel: false
-        time: 3
-      bufferSize: 5000
+        gyro: true
+        accel: true
+        time: 4
+      bufferSize: 50000
 
     preprocessing:
       cropBoxFilter:
-        size: 4.0
+        size: 3.0
       voxelFilter:
-        res: 1.25
+        res: 1
 
     keyframe:
       threshD: 1.0
@@ -54,8 +54,8 @@ dlio:
         kcv: 10
         kcc: 10
     gicp:
-      minNumPoints: 64
-      kCorrespondences: 16
+      minNumPoints: 128
+      kCorrespondences: 10
       maxCorrespondenceDistance: 0.5
       maxIterations: 32
       transformationEpsilon: 0.01

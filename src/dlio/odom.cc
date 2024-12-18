@@ -415,39 +415,39 @@ void dlio::OdomNode::publishToROS(pcl::PointCloud<PointType>::ConstPtr published
     br.sendTransform(transformStamped);
 
     //UNECESSARY SINCE WE ARE ALREADY PUBLISHING BASELINK TO OS_SENSOR
-    // // transform: baselink to imu
-    // transformStamped.header.stamp = this->imu_stamp;
-    // transformStamped.header.frame_id = this->baselink_frame;
-    // transformStamped.child_frame_id = this->imu_frame;
+    // transform: baselink to imu
+    transformStamped.header.stamp = this->imu_stamp;
+    transformStamped.header.frame_id = this->baselink_frame;
+    transformStamped.child_frame_id = this->imu_frame;
 
-    // transformStamped.transform.translation.x = this->extrinsics.baselink2imu.t[0];
-    // transformStamped.transform.translation.y = this->extrinsics.baselink2imu.t[1];
-    // transformStamped.transform.translation.z = this->extrinsics.baselink2imu.t[2];
+    transformStamped.transform.translation.x = this->extrinsics.baselink2imu.t[0];
+    transformStamped.transform.translation.y = this->extrinsics.baselink2imu.t[1];
+    transformStamped.transform.translation.z = this->extrinsics.baselink2imu.t[2];
 
-    // Eigen::Quaternionf q(this->extrinsics.baselink2imu.R);
-    // transformStamped.transform.rotation.w = q.w();
-    // transformStamped.transform.rotation.x = q.x();
-    // transformStamped.transform.rotation.y = q.y();
-    // transformStamped.transform.rotation.z = q.z();
+    Eigen::Quaternionf q(this->extrinsics.baselink2imu.R);
+    transformStamped.transform.rotation.w = q.w();
+    transformStamped.transform.rotation.x = q.x();
+    transformStamped.transform.rotation.y = q.y();
+    transformStamped.transform.rotation.z = q.z();
 
-    // br.sendTransform(transformStamped);
+    br.sendTransform(transformStamped);
 
-    // // transform: baselink to lidar
-    // transformStamped.header.stamp = this->imu_stamp;
-    // transformStamped.header.frame_id = this->baselink_frame;
-    // transformStamped.child_frame_id = this->lidar_frame;
+    // transform: baselink to lidar
+    transformStamped.header.stamp = this->imu_stamp;
+    transformStamped.header.frame_id = this->baselink_frame;
+    transformStamped.child_frame_id = this->lidar_frame;
 
-    // transformStamped.transform.translation.x = this->extrinsics.baselink2lidar.t[0];
-    // transformStamped.transform.translation.y = this->extrinsics.baselink2lidar.t[1];
-    // transformStamped.transform.translation.z = this->extrinsics.baselink2lidar.t[2];
+    transformStamped.transform.translation.x = this->extrinsics.baselink2lidar.t[0];
+    transformStamped.transform.translation.y = this->extrinsics.baselink2lidar.t[1];
+    transformStamped.transform.translation.z = this->extrinsics.baselink2lidar.t[2];
 
-    // Eigen::Quaternionf qq(this->extrinsics.baselink2lidar.R);
-    // transformStamped.transform.rotation.w = qq.w();
-    // transformStamped.transform.rotation.x = qq.x();
-    // transformStamped.transform.rotation.y = qq.y();
-    // transformStamped.transform.rotation.z = qq.z();
+    Eigen::Quaternionf qq(this->extrinsics.baselink2lidar.R);
+    transformStamped.transform.rotation.w = qq.w();
+    transformStamped.transform.rotation.x = qq.x();
+    transformStamped.transform.rotation.y = qq.y();
+    transformStamped.transform.rotation.z = qq.z();
 
-    // br.sendTransform(transformStamped);
+    br.sendTransform(transformStamped);
   }
 
 
@@ -860,81 +860,81 @@ void dlio::OdomNode::callbackPointCloud(const sensor_msgs::PointCloud2ConstPtr& 
 
 void dlio::OdomNode::callbackImu(const sensor_msgs::Imu::ConstPtr& imu_raw) {
 
+  this->first_imu_received = true;
+  // geometry_msgs::TransformStamped transform_stamped;
+  // if (!this->first_imu_received) {
+  //   //listen for a ros transform between two frames
+  //   try {
+  //   transform_stamped = tf_buffer_.lookupTransform(this->baselink_frame, this->imu_frame, ros::Time::now());
+  //   Eigen::Matrix3f R;
 
-  geometry_msgs::TransformStamped transform_stamped;
-  if (!this->first_imu_received) {
-    //listen for a ros transform between two frames
-    try {
-    transform_stamped = tf_buffer_.lookupTransform(this->baselink_frame, this->imu_frame, ros::Time::now());
-    Eigen::Matrix3f R;
+  //   // Get quaternion from transform
+  //   tf2::Quaternion q(transform_stamped.transform.rotation.x, 
+  //                     transform_stamped.transform.rotation.y, 
+  //                     transform_stamped.transform.rotation.z, 
+  //                     transform_stamped.transform.rotation.w);
 
-    // Get quaternion from transform
-    tf2::Quaternion q(transform_stamped.transform.rotation.x, 
-                      transform_stamped.transform.rotation.y, 
-                      transform_stamped.transform.rotation.z, 
-                      transform_stamped.transform.rotation.w);
+  //   // Convert tf2::Quaternion to Eigen::Quaternionf
+  //   Eigen::Quaternionf q_eigen(q.w(), q.x(), q.y(), q.z());
+  //   R = q_eigen.toRotationMatrix();
 
-    // Convert tf2::Quaternion to Eigen::Quaternionf
-    Eigen::Quaternionf q_eigen(q.w(), q.x(), q.y(), q.z());
-    R = q_eigen.toRotationMatrix();
+  //   std::cout << "R between baselink and imu: " << std::endl << R << std::endl;
 
-    std::cout << "R between baselink and imu: " << std::endl << R << std::endl;
+  //   this->extrinsics.baselink2imu.R = R;
 
-    this->extrinsics.baselink2imu.R = R;
+  //   //Get translation from transform
+  //   this->extrinsics.baselink2imu.t = Eigen::Vector3f(transform_stamped.transform.translation.x,
+  //                                                     transform_stamped.transform.translation.y,
+  //                                                     transform_stamped.transform.translation.z);
 
-    //Get translation from transform
-    this->extrinsics.baselink2imu.t = Eigen::Vector3f(transform_stamped.transform.translation.x,
-                                                      transform_stamped.transform.translation.y,
-                                                      transform_stamped.transform.translation.z);
-
-    std::cout << "t between baselink and imu: " << std::endl << this->extrinsics.baselink2imu.t << std::endl;
-
-
-    this->extrinsics.baselink2imu_T.block(0, 3, 3, 1) = this->extrinsics.baselink2imu.t;
-    this->extrinsics.baselink2imu_T.block(0, 0, 3, 3) = this->extrinsics.baselink2imu.R;
+  // std::cout << "t between baselink and imu: " << std::endl << this->extrinsics.baselink2imu.t << std::endl;
 
 
-
-
-    transform_stamped = tf_buffer_.lookupTransform(this->baselink_frame, this->lidar_frame, ros::Time::now());
-    Eigen::Matrix3f R_lidar;
-
-    // Get quaternion from transform
-    tf2::Quaternion q_lidar(transform_stamped.transform.rotation.x, 
-                      transform_stamped.transform.rotation.y, 
-                      transform_stamped.transform.rotation.z, 
-                      transform_stamped.transform.rotation.w);
-
-    // Convert tf2::Quaternion to Eigen::Quaternionf
-    Eigen::Quaternionf q_eigen_lidar(q_lidar.w(), q_lidar.x(), q_lidar.y(), q_lidar.z());
-    R_lidar = q_eigen_lidar.toRotationMatrix();
-
-    std::cout << "R between baselink and lidar: " << std::endl << R_lidar << std::endl;
-
-    this->extrinsics.baselink2lidar.R = R_lidar;
-
-    //Get translation from transform
-    this->extrinsics.baselink2lidar.t = Eigen::Vector3f(transform_stamped.transform.translation.x,
-                                                      transform_stamped.transform.translation.y,
-                                                      transform_stamped.transform.translation.z);
-
-    std::cout << "t between baselink and lidar: " << std::endl << this->extrinsics.baselink2lidar.t << std::endl;
-
-
-    this->extrinsics.baselink2lidar_T.block(0, 3, 3, 1) = this->extrinsics.baselink2lidar.t;
-    this->extrinsics.baselink2lidar_T.block(0, 0, 3, 3) = this->extrinsics.baselink2lidar.R;
+  //   this->extrinsics.baselink2imu_T.block(0, 3, 3, 1) = this->extrinsics.baselink2imu.t;
+  //   this->extrinsics.baselink2imu_T.block(0, 0, 3, 3) = this->extrinsics.baselink2imu.R;
 
 
 
-    this->first_imu_received = true;
-    }
-    catch (tf2::TransformException &ex) {
-      ROS_WARN("Exception %s",ex.what());
-      std::cout << "ERROR: transform between " << this->baselink_frame << " and " << this->imu_frame << " or " << this->lidar_frame << " not found!" << std::endl;
-      return;
-    }
 
-  }
+  //   transform_stamped = tf_buffer_.lookupTransform(this->baselink_frame, this->lidar_frame, ros::Time::now());
+  //   Eigen::Matrix3f R_lidar;
+
+  //   // Get quaternion from transform
+  //   tf2::Quaternion q_lidar(transform_stamped.transform.rotation.x, 
+  //                     transform_stamped.transform.rotation.y, 
+  //                     transform_stamped.transform.rotation.z, 
+  //                     transform_stamped.transform.rotation.w);
+
+  //   // Convert tf2::Quaternion to Eigen::Quaternionf
+  //   Eigen::Quaternionf q_eigen_lidar(q_lidar.w(), q_lidar.x(), q_lidar.y(), q_lidar.z());
+  //   R_lidar = q_eigen_lidar.toRotationMatrix();
+
+  //   std::cout << "R between baselink and lidar: " << std::endl << R_lidar << std::endl;
+
+  //   this->extrinsics.baselink2lidar.R = R_lidar;
+
+  //   //Get translation from transform
+  //   this->extrinsics.baselink2lidar.t = Eigen::Vector3f(transform_stamped.transform.translation.x,
+  //                                                     transform_stamped.transform.translation.y,
+  //                                                     transform_stamped.transform.translation.z);
+
+  // std::cout << "t between baselink and lidar: " << std::endl << this->extrinsics.baselink2lidar.t << std::endl;
+
+
+  //   this->extrinsics.baselink2lidar_T.block(0, 3, 3, 1) = this->extrinsics.baselink2lidar.t;
+  //   this->extrinsics.baselink2lidar_T.block(0, 0, 3, 3) = this->extrinsics.baselink2lidar.R;
+
+
+
+  //   this->first_imu_received = true;
+  //   }
+  //   catch (tf2::TransformException &ex) {
+  //     ROS_WARN("Exception %s",ex.what());
+  //     std::cout << "ERROR: transform between " << this->baselink_frame << " and " << this->imu_frame << " or " << this->lidar_frame << " not found!" << std::endl;
+  //     return;
+  //   }
+
+  // }
   
       
 
@@ -955,6 +955,17 @@ void dlio::OdomNode::callbackImu(const sensor_msgs::Imu::ConstPtr& imu_raw) {
 
   if (this->first_imu_stamp == 0.) {
     this->first_imu_stamp = imu->header.stamp.toSec();
+    ROS_INFO("[DLIO] t between baselink and imu: [%f, %f, %f]",
+         this->extrinsics.baselink2imu.t.x(),
+         this->extrinsics.baselink2imu.t.y(),
+         this->extrinsics.baselink2imu.t.z());
+
+    ROS_INFO("[DLIO] t between baselink and lidar: [%f, %f, %f]",
+            this->extrinsics.baselink2lidar.t.x(),
+            this->extrinsics.baselink2lidar.t.y(),
+            this->extrinsics.baselink2lidar.t.z());
+    std::cout << "t between baselink and imu: " << std::endl << this->extrinsics.baselink2imu.t << std::endl;
+    std::cout << "t between baselink and lidar: " << std::endl << this->extrinsics.baselink2lidar.t << std::endl;
   }
 
   // IMU calibration procedure - do for three seconds
@@ -1973,119 +1984,119 @@ void dlio::OdomNode::debug() {
   // Print to terminal
   printf("\033[2J\033[1;1H");
 
-  std::cout << std::endl
-            << "+-------------------------------------------------------------------+" << std::endl;
-  std::cout << "|               Direct LiDAR-Inertial Odometry v" << this->version_  << "               |"
-            << std::endl;
-  std::cout << "+-------------------------------------------------------------------+" << std::endl;
+  // std::cout << std::endl
+  //           << "+-------------------------------------------------------------------+" << std::endl;
+  // std::cout << "|               Direct LiDAR-Inertial Odometry v" << this->version_  << "               |"
+  //           << std::endl;
+  // std::cout << "+-------------------------------------------------------------------+" << std::endl;
 
-  std::time_t curr_time = this->scan_stamp;
-  std::string asc_time = std::asctime(std::localtime(&curr_time)); asc_time.pop_back();
-  std::cout << "| " << std::left << asc_time;
-  std::cout << std::right << std::setfill(' ') << std::setw(42)
-    << "Elapsed Time: " + to_string_with_precision(this->elapsed_time, 2) + " seconds "
-    << "|" << std::endl;
+  // std::time_t curr_time = this->scan_stamp;
+  // std::string asc_time = std::asctime(std::localtime(&curr_time)); asc_time.pop_back();
+  // std::cout << "| " << std::left << asc_time;
+  // std::cout << std::right << std::setfill(' ') << std::setw(42)
+  //   << "Elapsed Time: " + to_string_with_precision(this->elapsed_time, 2) + " seconds "
+  //   << "|" << std::endl;
 
-  if ( !this->cpu_type.empty() ) {
-    std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-      << this->cpu_type + " x " + std::to_string(this->numProcessors)
-      << "|" << std::endl;
-  }
+  // if ( !this->cpu_type.empty() ) {
+  //   std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //     << this->cpu_type + " x " + std::to_string(this->numProcessors)
+  //     << "|" << std::endl;
+  // }
 
-  if (this->sensor == dlio::SensorType::OUSTER) {
-    std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-      << "Sensor Rates: Ouster @ " + to_string_with_precision(avg_lidar_rate, 2)
-                                   + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
-      << "|" << std::endl;
-  } else if (this->sensor == dlio::SensorType::VELODYNE) {
-    std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-      << "Sensor Rates: Velodyne @ " + to_string_with_precision(avg_lidar_rate, 2)
-                                     + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
-      << "|" << std::endl;
-  } else if (this->sensor == dlio::SensorType::HESAI) {
-    std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-      << "Sensor Rates: Hesai @ " + to_string_with_precision(avg_lidar_rate, 2)
-                                  + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
-      << "|" << std::endl;
-  } else {
-    std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-      << "Sensor Rates: Unknown LiDAR @ " + to_string_with_precision(avg_lidar_rate, 2)
-                                          + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
-      << "|" << std::endl;
-  }
+  // if (this->sensor == dlio::SensorType::OUSTER) {
+  //   std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //     << "Sensor Rates: Ouster @ " + to_string_with_precision(avg_lidar_rate, 2)
+  //                                  + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
+  //     << "|" << std::endl;
+  // } else if (this->sensor == dlio::SensorType::VELODYNE) {
+  //   std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //     << "Sensor Rates: Velodyne @ " + to_string_with_precision(avg_lidar_rate, 2)
+  //                                    + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
+  //     << "|" << std::endl;
+  // } else if (this->sensor == dlio::SensorType::HESAI) {
+  //   std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //     << "Sensor Rates: Hesai @ " + to_string_with_precision(avg_lidar_rate, 2)
+  //                                 + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
+  //     << "|" << std::endl;
+  // } else {
+  //   std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //     << "Sensor Rates: Unknown LiDAR @ " + to_string_with_precision(avg_lidar_rate, 2)
+  //                                         + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
+  //     << "|" << std::endl;
+  // }
 
-  std::cout << "|===================================================================|" << std::endl;
+  // std::cout << "|===================================================================|" << std::endl;
 
-  std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-    << "Position     {W}  [xyz] :: " + to_string_with_precision(this->state.p[0], 4) + " "
-                                + to_string_with_precision(this->state.p[1], 4) + " "
-                                + to_string_with_precision(this->state.p[2], 4)
-    << "|" << std::endl;
-  std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-    << "Orientation  {W} [wxyz] :: " + to_string_with_precision(this->state.q.w(), 4) + " "
-                                + to_string_with_precision(this->state.q.x(), 4) + " "
-                                + to_string_with_precision(this->state.q.y(), 4) + " "
-                                + to_string_with_precision(this->state.q.z(), 4)
-    << "|" << std::endl;
-  std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-    << "Lin Velocity {B}  [xyz] :: " + to_string_with_precision(this->state.v.lin.b[0], 4) + " "
-                                + to_string_with_precision(this->state.v.lin.b[1], 4) + " "
-                                + to_string_with_precision(this->state.v.lin.b[2], 4)
-    << "|" << std::endl;
-  std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-    << "Ang Velocity {B}  [xyz] :: " + to_string_with_precision(this->state.v.ang.b[0], 4) + " "
-                                + to_string_with_precision(this->state.v.ang.b[1], 4) + " "
-                                + to_string_with_precision(this->state.v.ang.b[2], 4)
-    << "|" << std::endl;
-  std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-    << "Accel Bias        [xyz] :: " + to_string_with_precision(this->state.b.accel[0], 8) + " "
-                                + to_string_with_precision(this->state.b.accel[1], 8) + " "
-                                + to_string_with_precision(this->state.b.accel[2], 8)
-    << "|" << std::endl;
-  std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-    << "Gyro Bias         [xyz] :: " + to_string_with_precision(this->state.b.gyro[0], 8) + " "
-                                + to_string_with_precision(this->state.b.gyro[1], 8) + " "
-                                + to_string_with_precision(this->state.b.gyro[2], 8)
-    << "|" << std::endl;
+  // std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //   << "Position     {W}  [xyz] :: " + to_string_with_precision(this->state.p[0], 4) + " "
+  //                               + to_string_with_precision(this->state.p[1], 4) + " "
+  //                               + to_string_with_precision(this->state.p[2], 4)
+  //   << "|" << std::endl;
+  // std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //   << "Orientation  {W} [wxyz] :: " + to_string_with_precision(this->state.q.w(), 4) + " "
+  //                               + to_string_with_precision(this->state.q.x(), 4) + " "
+  //                               + to_string_with_precision(this->state.q.y(), 4) + " "
+  //                               + to_string_with_precision(this->state.q.z(), 4)
+  //   << "|" << std::endl;
+  // std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //   << "Lin Velocity {B}  [xyz] :: " + to_string_with_precision(this->state.v.lin.b[0], 4) + " "
+  //                               + to_string_with_precision(this->state.v.lin.b[1], 4) + " "
+  //                               + to_string_with_precision(this->state.v.lin.b[2], 4)
+  //   << "|" << std::endl;
+  // std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //   << "Ang Velocity {B}  [xyz] :: " + to_string_with_precision(this->state.v.ang.b[0], 4) + " "
+  //                               + to_string_with_precision(this->state.v.ang.b[1], 4) + " "
+  //                               + to_string_with_precision(this->state.v.ang.b[2], 4)
+  //   << "|" << std::endl;
+  // std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //   << "Accel Bias        [xyz] :: " + to_string_with_precision(this->state.b.accel[0], 8) + " "
+  //                               + to_string_with_precision(this->state.b.accel[1], 8) + " "
+  //                               + to_string_with_precision(this->state.b.accel[2], 8)
+  //   << "|" << std::endl;
+  // std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //   << "Gyro Bias         [xyz] :: " + to_string_with_precision(this->state.b.gyro[0], 8) + " "
+  //                               + to_string_with_precision(this->state.b.gyro[1], 8) + " "
+  //                               + to_string_with_precision(this->state.b.gyro[2], 8)
+  //   << "|" << std::endl;
 
-  std::cout << "|                                                                   |" << std::endl;
+  // std::cout << "|                                                                   |" << std::endl;
 
-  std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-    << "Distance Traveled  :: " + to_string_with_precision(length_traversed, 4) + " meters"
-    << "|" << std::endl;
-  std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-    << "Distance to Origin :: "
-      + to_string_with_precision( sqrt(pow(this->state.p[0]-this->origin[0],2) +
-                                       pow(this->state.p[1]-this->origin[1],2) +
-                                       pow(this->state.p[2]-this->origin[2],2)), 4) + " meters"
-    << "|" << std::endl;
-  std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-    << "Registration       :: keyframes: " + std::to_string(this->keyframes.size()) + ", "
-                               + "deskewed points: " + std::to_string(this->deskew_size)
-    << "|" << std::endl;
-  std::cout << "|                                                                   |" << std::endl;
+  // std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //   << "Distance Traveled  :: " + to_string_with_precision(length_traversed, 4) + " meters"
+  //   << "|" << std::endl;
+  // std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //   << "Distance to Origin :: "
+  //     + to_string_with_precision( sqrt(pow(this->state.p[0]-this->origin[0],2) +
+  //                                      pow(this->state.p[1]-this->origin[1],2) +
+  //                                      pow(this->state.p[2]-this->origin[2],2)), 4) + " meters"
+  //   << "|" << std::endl;
+  // std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //   << "Registration       :: keyframes: " + std::to_string(this->keyframes.size()) + ", "
+  //                              + "deskewed points: " + std::to_string(this->deskew_size)
+  //   << "|" << std::endl;
+  // std::cout << "|                                                                   |" << std::endl;
 
-  std::cout << std::right << std::setprecision(2) << std::fixed;
-  std::cout << "| Computation Time :: "
-    << std::setfill(' ') << std::setw(6) << this->comp_times.back()*1000. << " ms    // Avg: "
-    << std::setw(6) << avg_comp_time*1000. << " / Max: "
-    << std::setw(6) << *std::max_element(this->comp_times.begin(), this->comp_times.end())*1000.
-    << "     |" << std::endl;
-  std::cout << "| Cores Utilized   :: "
-    << std::setfill(' ') << std::setw(6) << (cpu_percent/100.) * this->numProcessors << " cores // Avg: "
-    << std::setw(6) << (avg_cpu_usage/100.) * this->numProcessors << " / Max: "
-    << std::setw(6) << (*std::max_element(this->cpu_percents.begin(), this->cpu_percents.end()) / 100.)
-                       * this->numProcessors
-    << "     |" << std::endl;
-  std::cout << "| CPU Load         :: "
-    << std::setfill(' ') << std::setw(6) << cpu_percent << " %     // Avg: "
-    << std::setw(6) << avg_cpu_usage << " / Max: "
-    << std::setw(6) << *std::max_element(this->cpu_percents.begin(), this->cpu_percents.end())
-    << "     |" << std::endl;
-  std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-    << "RAM Allocation   :: " + to_string_with_precision(resident_set/1000., 2) + " MB"
-    << "|" << std::endl;
+  // std::cout << std::right << std::setprecision(2) << std::fixed;
+  // std::cout << "| Computation Time :: "
+  //   << std::setfill(' ') << std::setw(6) << this->comp_times.back()*1000. << " ms    // Avg: "
+  //   << std::setw(6) << avg_comp_time*1000. << " / Max: "
+  //   << std::setw(6) << *std::max_element(this->comp_times.begin(), this->comp_times.end())*1000.
+  //   << "     |" << std::endl;
+  // std::cout << "| Cores Utilized   :: "
+  //   << std::setfill(' ') << std::setw(6) << (cpu_percent/100.) * this->numProcessors << " cores // Avg: "
+  //   << std::setw(6) << (avg_cpu_usage/100.) * this->numProcessors << " / Max: "
+  //   << std::setw(6) << (*std::max_element(this->cpu_percents.begin(), this->cpu_percents.end()) / 100.)
+  //                      * this->numProcessors
+  //   << "     |" << std::endl;
+  // std::cout << "| CPU Load         :: "
+  //   << std::setfill(' ') << std::setw(6) << cpu_percent << " %     // Avg: "
+  //   << std::setw(6) << avg_cpu_usage << " / Max: "
+  //   << std::setw(6) << *std::max_element(this->cpu_percents.begin(), this->cpu_percents.end())
+  //   << "     |" << std::endl;
+  // std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+  //   << "RAM Allocation   :: " + to_string_with_precision(resident_set/1000., 2) + " MB"
+  //   << "|" << std::endl;
 
-  std::cout << "+-------------------------------------------------------------------+" << std::endl;
+  // std::cout << "+-------------------------------------------------------------------+" << std::endl;
 
 }
