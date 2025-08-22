@@ -18,6 +18,7 @@
 
   <arg name="pointcloud_topic" default="/ouster/points"/>
   <arg name="imu_topic" default="/ouster/imu"/>
+  <arg name="mission_topic" default="/state_machine/mission"/>
 
   <!-- DLIO Odometry Node -->
   <node name="dlio_odom_node" pkg="direct_lidar_inertial_odometry" type="dlio_odom_node" output="screen" clear_params="true">
@@ -29,6 +30,7 @@
     <!-- Subscriptions -->
     <remap from="~pointcloud" to="$(arg pointcloud_topic)"/>
     <remap from="~imu" to="$(arg imu_topic)"/>
+    <remap from"~mission" to="$(arg mission_topic)"/>
 
     <!-- Publications -->
     <remap from="~odom"     to="dlio/odom_node/odom"/>

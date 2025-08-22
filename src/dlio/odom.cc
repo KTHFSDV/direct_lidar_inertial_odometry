@@ -21,6 +21,7 @@ dlio::OdomNode::OdomNode(ros::NodeHandle node_handle) : nh(node_handle), tf_list
   std::cout << "Number of threads: " << this->num_threads_ << std::endl;
 
   this->dlio_initialized = false;
+  this->mission_selected = false;
   this->first_valid_scan = false;
   this->first_imu_received = false;
   if (this->imu_calibrate_) {this->imu_calibrated = false;}
@@ -33,6 +34,7 @@ dlio::OdomNode::OdomNode(ros::NodeHandle node_handle) : nh(node_handle), tf_list
       &dlio::OdomNode::callbackPointCloud, this, ros::TransportHints().tcpNoDelay());
   this->imu_sub = this->nh.subscribe("imu", 1000,
       &dlio::OdomNode::callbackImu, this, ros::TransportHints().tcpNoDelay());
+  this->mission_sub = this->nh.subscribe("mission", 1, &dlio::OdomNode::callbackMission, this);
 
   this->odom_pub     = this->nh.advertise<nav_msgs::Odometry>("odom", 1, true);
   this->pose_pub     = this->nh.advertise<geometry_msgs::PoseStamped>("pose", 1, true);
@@ -757,6 +759,7 @@ void dlio::OdomNode::initializeDLIO() {
 }
 
 void dlio::OdomNode::callbackPointCloud(const sensor_msgs::PointCloud2ConstPtr& pc) {
+  if (!mission_selected) return;
 
   std::unique_lock<decltype(this->main_loop_running_mutex)> lock(main_loop_running_mutex);
   this->main_loop_running = true;
@@ -859,6 +862,7 @@ void dlio::OdomNode::callbackPointCloud(const sensor_msgs::PointCloud2ConstPtr& 
 }
 
 void dlio::OdomNode::callbackImu(const sensor_msgs::Imu::ConstPtr& imu_raw) {
+  if (!mission_selected) return;
 
   this->first_imu_received = true;
   // geometry_msgs::TransformStamped transform_stamped;
@@ -1089,6 +1093,10 @@ void dlio::OdomNode::callbackImu(const sensor_msgs::Imu::ConstPtr& imu_raw) {
 
   }
 
+}
+
+void dlio::OdomNode::callbackMission(const std_msgs::Int16& msg) {
+  if (!this->mission_selected) this->mission_selected = true;
 }
 
 void dlio::OdomNode::getNextPose() {

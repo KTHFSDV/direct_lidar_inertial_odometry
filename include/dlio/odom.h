@@ -32,6 +32,7 @@ private:
 
   void callbackPointCloud(const sensor_msgs::PointCloud2ConstPtr& pc);
   void callbackImu(const sensor_msgs::Imu::ConstPtr& imu);
+  void callbackMission(const std_msgs::Int16& msg);
 
   void publishPose(const ros::TimerEvent& e);
 
@@ -90,6 +91,7 @@ private:
   // Subscribers
   ros::Subscriber lidar_sub;
   ros::Subscriber imu_sub;
+  ros::Subscriber mission_sub;
 
   // Publishers
   ros::Publisher odom_pub;
@@ -118,6 +120,7 @@ private:
   std::atomic<bool> gicp_hasConverged;
   std::atomic<bool> deskew_status;
   std::atomic<int> deskew_size;
+  std::atomic<bool> mission_selected;
 
   // Threads
   std::thread publish_thread;
