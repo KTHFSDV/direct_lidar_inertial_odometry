@@ -14,14 +14,13 @@
 
 int main(int argc, char** argv) {
 
-  ros::init(argc, argv, "dlio_map_node");
-  ros::NodeHandle nh("~");
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<dlio::MapNode>();
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(node);
+  executor.spin();
 
-  dlio::MapNode node(nh);
-  ros::AsyncSpinner spinner(0);
-  spinner.start();
-  node.start();
-  ros::waitForShutdown();
+  rclcpp::shutdown();
 
   return 0;
 

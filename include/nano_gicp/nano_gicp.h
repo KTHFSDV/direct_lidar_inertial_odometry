@@ -149,4 +149,3 @@ protected:
   std::vector<float> sq_distances_;
 };
 }  // namespace nano_gicp
-
