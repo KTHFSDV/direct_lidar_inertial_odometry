@@ -24,18 +24,26 @@ dlio::OdomNode::OdomNode() : Node("dlio_odom_node") {
   this->num_threads_ = omp_get_max_threads();
 
   this->dlio_initialized = false;
+  this->mission_selected = false;
   this->first_valid_scan = false;
   this->first_imu_received = false;
   if (this->imu_calibrate_) {this->imu_calibrated = false;}
   else {this->imu_calibrated = true;}
   this->deskew_status = false;
   this->deskew_size = 0;
+  this->stateHasBeenUpdated = false;
 
   this->lidar_cb_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   auto lidar_sub_opt = rclcpp::SubscriptionOptions();
   lidar_sub_opt.callback_group = this->lidar_cb_group;
   this->lidar_sub = this->create_subscription<sensor_msgs::msg::PointCloud2>("pointcloud", 1,
       std::bind(&dlio::OdomNode::callbackPointCloud, this, std::placeholders::_1), lidar_sub_opt);
+  
+  this->mission_cb_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  auto mission_sub_opt = rclcpp::SubscriptionOptions();
+  mission_sub_opt.callback_group = this->mission_cb_group;
+  this->mission_sub = this->create_subscription<std_msgs::msg::Int16>("mission", 10,                         // Queue size
+    std::bind(&dlio::OdomNode::callbackMission, this, std::placeholders::_1), mission_sub_opt);
 
   this->imu_cb_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   auto imu_sub_opt = rclcpp::SubscriptionOptions();
@@ -187,6 +195,23 @@ void dlio::OdomNode::getParams() {
   dlio::declare_param(this, "frames/baselink", this->baselink_frame, "base_link");
   dlio::declare_param(this, "frames/lidar", this->lidar_frame, "lidar");
   dlio::declare_param(this, "frames/imu", this->imu_frame, "imu");
+
+  // Fix for ROS2
+  // Get Node NS and Remove Leading Character
+  // std::string ns = ros::this_node::getNamespace();
+  // ns.erase(0,1);
+  // // Concatenate Frame Name Strings (if there is one)
+  // if (ns.compare("") != 0 && !ns.empty()) {
+  //   //Append to frames if we have namespace
+  //   this->odom_frame = ns + "/" + this->odom_frame;
+  //   this->baselink_frame = ns + "/" + this->baselink_frame;
+  //   this->lidar_frame = ns + "/" + this->lidar_frame;
+  //   this->imu_frame = ns + "/" + this->imu_frame;
+  // }
+  // std::cout << "odom_frame: " << this->odom_frame << std::endl;
+  // std::cout << "baselink_frame: " << this->baselink_frame << std::endl;
+  // std::cout << "lidar_frame: " << this->lidar_frame << std::endl;
+  // std::cout << "imu_frame: " << this->imu_frame << std::endl;
 
   // Deskew Flag
   dlio::declare_param(this, "pointcloud/deskew", this->deskew_, true);
@@ -1000,6 +1025,10 @@ void dlio::OdomNode::callbackImu(const sensor_msgs::msg::Imu::SharedPtr imu_raw)
 
   }
 
+}
+
+void dlio::OdomNode::callbackMission(const std_msgs::msg::Int16& msg) {
+  if (!this->mission_selected) this->mission_selected = true;
 }
 
 void dlio::OdomNode::getNextPose() {
