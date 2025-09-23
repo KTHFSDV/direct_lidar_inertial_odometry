@@ -14,6 +14,7 @@
 
 // ROS
 #include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/int16.hpp"
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
@@ -144,6 +145,7 @@ private:
   std::atomic<bool> gicp_hasConverged;
   std::atomic<bool> deskew_status;
   std::atomic<int> deskew_size;
+  std::atomic<bool> mission_selected;
 
   // Threads
   std::thread publish_thread;

@@ -21,17 +21,17 @@
     pointcloud/voxelize: true
 
     imu/calibration: true
-    imu/intrinsics/accel/bias: [ 0.0, 0.0, 0.0 ]
+    imu/intrinsics/accel/bias: [ 0.26072991, 0.04173179, 0.12931347 ]
     imu/intrinsics/accel/sm:   [ 1.,  0.,  0.,
                                  0.,  1.,  0.,
                                  0.,  0.,  1. ]
-    imu/intrinsics/gyro/bias: [ 0.0, 0.0, 0.0 ]
+    imu/intrinsics/gyro/bias: [ 0.01881908, -0.01950774, 0.00318885 ]
 
-    extrinsics/baselink2imu/t: [ 0.006253, -0.011775, 0.007645 ] 
+    extrinsics/baselink2imu/t: [ 0.535747, 0.011775, 0.981645 ] 
     extrinsics/baselink2imu/R: [ 1.,  0.,  0.,
                                  0.,  1.,  0.,
                                  0.,  0.,  1. ]
-    extrinsics/baselink2lidar/t: [ 0.,  0.,  0. ]
+    extrinsics/baselink2lidar/t: [  0.542, 0., 1.048296 ]
     extrinsics/baselink2lidar/R: [ 1.,  0.,  0.,
                                    0.,  1.,  0.,
                                    0.,  0.,  1. ]

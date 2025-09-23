@@ -1,5 +1,3 @@
-version: '3.8'
-
 ### -----------ROS MASTER----------------- ###
 # Do not edit! Works with melodic and noetic
 services:
@@ -17,7 +15,7 @@ services:
       - ./:/ws/src/direct_lidar_inertial_odometry
     network_mode: host
     entrypoint: /ws/src/direct_lidar_inertial_odometry/docker-entrypoint.sh 
-    command: bash -c "source devel/setup.bash && sleep infinity"
+    command: bash -c "source install/setup.bash && sleep infinity"
 
 
 

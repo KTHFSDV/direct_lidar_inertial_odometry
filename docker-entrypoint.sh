@@ -1,21 +1,24 @@
 #!/bin/bash
 set -e
 source /root/.bashrc
-source "/opt/ros/noetic/setup.bash"             #<--- TODO: change to your ROS version
-# CONTAINER_INITIALIZED="CONTAINER_INITIALIZED_PLACEHOLDER"
 
-CONTAINER_INITIALIZED="CONTAINER_INITIALIZED_PLACEHOLDER"
-if [ ! -e $CONTAINER_INITIALIZED ]; then
-    touch $CONTAINER_INITIALIZED
+ROS_DISTRO=jazzy
+
+# Source ROS 2 environment
+source "/opt/ros/$ROS_DISTRO/setup.bash"
+
+if [ ! -e ".CONTAINER_INITIALIZED_PLACEHOLDER" ]; then
     echo "-- First container startup --"
-    catkin init
-    #catkin config
-    catkin build
-    source "/ws/devel/setup.bash"
+    cd /ws
+    colcon build --symlink-install
+    # This placeholder file used in the github action to check when build is done
+    touch ".CONTAINER_INITIALIZED_PLACEHOLDER"
+    # Source the workspace in every new shell
+    echo "source /ws/install/setup.bash" >> /root/.bashrc
 else
     echo "-- Not first container startup --"
-    source "/ws/devel/setup.bash"
+    source "/ws/install/setup.bash"
 fi
 
-
+# Execute the container command
 exec "$@"

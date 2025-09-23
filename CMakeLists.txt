@@ -34,13 +34,14 @@ set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 # Not all machines have <cpuid.h> available
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
-rosidl_generate_interfaces(
-    ${PROJECT_NAME}
-        srv/SavePCD.srv
-    DEPENDENCIES       
-)
-rosidl_get_typesupport_target(cpp_typesupport_target
-  ${PROJECT_NAME} rosidl_typesupport_cpp)
+# rosidl_generate_interfaces(
+#     ${PROJECT_NAME}
+#         srv/SavePCD.srv
+#     DEPENDENCIES       
+# )
+
+# rosidl_get_typesupport_target(cpp_typesupport_target
+#   ${PROJECT_NAME} rosidl_typesupport_cpp)
 
 include_directories(${PCL_INCLUDE_DIRS})
 include_directories(${EIGEN3_INCLUDE_DIR})
