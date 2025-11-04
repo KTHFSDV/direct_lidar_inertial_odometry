@@ -30,7 +30,7 @@
     <!-- Subscriptions -->
     <remap from="~pointcloud" to="$(arg pointcloud_topic)"/>
     <remap from="~imu" to="$(arg imu_topic)"/>
-    <remap from"~mission" to="$(arg mission_topic)"/>
+    <remap from="~mission" to="$(arg mission_topic)"/>
 
     <!-- Publications -->
     <remap from="~odom"     to="dlio/odom_node/odom"/>
