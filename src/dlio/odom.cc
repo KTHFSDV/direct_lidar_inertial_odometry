@@ -23,6 +23,8 @@ dlio::OdomNode::OdomNode() : Node("dlio_odom_node") {
 
   this->num_threads_ = omp_get_max_threads();
 
+  std::cout << "Number of threads: " << this->num_threads_ << std::endl;
+
   this->dlio_initialized = false;
   this->mission_selected = false;
   this->first_valid_scan = false;
@@ -33,23 +35,14 @@ dlio::OdomNode::OdomNode() : Node("dlio_odom_node") {
   this->deskew_size = 0;
   this->stateHasBeenUpdated = false;
 
-  this->lidar_cb_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  auto lidar_sub_opt = rclcpp::SubscriptionOptions();
-  lidar_sub_opt.callback_group = this->lidar_cb_group;
-  this->lidar_sub = this->create_subscription<sensor_msgs::msg::PointCloud2>("pointcloud", 1,
-      std::bind(&dlio::OdomNode::callbackPointCloud, this, std::placeholders::_1), lidar_sub_opt);
-  
-  this->mission_cb_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  auto mission_sub_opt = rclcpp::SubscriptionOptions();
-  mission_sub_opt.callback_group = this->mission_cb_group;
-  this->mission_sub = this->create_subscription<std_msgs::msg::Int16>("mission", 10,                         // Queue size
-    std::bind(&dlio::OdomNode::callbackMission, this, std::placeholders::_1), mission_sub_opt);
+  this->lidar_sub = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+    "pointcloud", rclcpp::QoS(1), std::bind(&dlio::OdomNode::callbackPointCloud, this, std::placeholders::_1));
 
-  this->imu_cb_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  auto imu_sub_opt = rclcpp::SubscriptionOptions();
-  imu_sub_opt.callback_group = this->imu_cb_group;
-  this->imu_sub = this->create_subscription<sensor_msgs::msg::Imu>("imu", rclcpp::SensorDataQoS(),
-      std::bind(&dlio::OdomNode::callbackImu, this, std::placeholders::_1), imu_sub_opt);
+  this->mission_sub = this->create_subscription<std_msgs::msg::Int16>(
+      "mission", rclcpp::QoS(1), std::bind(&dlio::OdomNode::callbackMission, this, std::placeholders::_1));
+
+  this->imu_sub = this->create_subscription<sensor_msgs::msg::Imu>(
+      "imu", rclcpp::QoS(1000), std::bind(&dlio::OdomNode::callbackImu, this, std::placeholders::_1));
 
   this->odom_pub     = this->create_publisher<nav_msgs::msg::Odometry>("odom", 1);
   this->pose_pub     = this->create_publisher<geometry_msgs::msg::PoseStamped>("pose", 1);
@@ -181,6 +174,7 @@ dlio::OdomNode::OdomNode() : Node("dlio_odom_node") {
   }
   fclose(file);
 
+  std::cout << "Number of processors: " << this->numProcessors << std::endl;
 }
 
 dlio::OdomNode::~OdomNode() {}
@@ -188,30 +182,29 @@ dlio::OdomNode::~OdomNode() {}
 void dlio::OdomNode::getParams() {
 
   // Version
-  dlio::declare_param(this, "version", this->version_, "0.0.0");
+  dlio::declare_param<std::string>(this, "version", this->version_, "0.0.0");
 
   // Frames
-  dlio::declare_param(this, "frames/odom", this->odom_frame, "odom");
-  dlio::declare_param(this, "frames/baselink", this->baselink_frame, "base_link");
-  dlio::declare_param(this, "frames/lidar", this->lidar_frame, "lidar");
-  dlio::declare_param(this, "frames/imu", this->imu_frame, "imu");
+  dlio::declare_param<std::string>(this, "frames/odom", this->odom_frame, "odom");
+  dlio::declare_param<std::string>(this, "frames/baselink", this->baselink_frame, "base_link");
+  dlio::declare_param<std::string>(this, "frames/lidar", this->lidar_frame, "lidar");
+  dlio::declare_param<std::string>(this, "frames/imu", this->imu_frame, "imu");
 
-  // Fix for ROS2
-  // Get Node NS and Remove Leading Character
-  // std::string ns = ros::this_node::getNamespace();
-  // ns.erase(0,1);
-  // // Concatenate Frame Name Strings (if there is one)
-  // if (ns.compare("") != 0 && !ns.empty()) {
-  //   //Append to frames if we have namespace
-  //   this->odom_frame = ns + "/" + this->odom_frame;
-  //   this->baselink_frame = ns + "/" + this->baselink_frame;
-  //   this->lidar_frame = ns + "/" + this->lidar_frame;
-  //   this->imu_frame = ns + "/" + this->imu_frame;
-  // }
-  // std::cout << "odom_frame: " << this->odom_frame << std::endl;
-  // std::cout << "baselink_frame: " << this->baselink_frame << std::endl;
-  // std::cout << "lidar_frame: " << this->lidar_frame << std::endl;
-  // std::cout << "imu_frame: " << this->imu_frame << std::endl;
+  std::string ns = this->get_namespace();
+  if (!ns.empty() && ns[0] == '/') {
+      ns.erase(0, 1);
+  }
+  if (!ns.empty()) {
+      this->odom_frame = ns + "/" + this->odom_frame;
+      this->baselink_frame = ns + "/" + this->baselink_frame;
+      this->lidar_frame = ns + "/" + this->lidar_frame;
+      this->imu_frame = ns + "/" + this->imu_frame;
+  }
+  std::cout << "odom_frame: " << this->odom_frame << std::endl;
+  std::cout << "baselink_frame: " << this->baselink_frame << std::endl;
+  std::cout << "lidar_frame: " << this->lidar_frame << std::endl;
+  std::cout << "imu_frame: " << this->imu_frame << std::endl;
+
 
   // Deskew Flag
   dlio::declare_param(this, "pointcloud/deskew", this->deskew_, true);
@@ -389,6 +382,7 @@ void dlio::OdomNode::publishPose() {
 }
 
 void dlio::OdomNode::publishToROS(pcl::PointCloud<PointType>::ConstPtr published_cloud, Eigen::Matrix4f T_cloud) {
+  
   this->publishCloud(published_cloud, T_cloud);
 
   // nav_msgs::msg::Path
@@ -562,10 +556,8 @@ void dlio::OdomNode::getScanFromROS(const sensor_msgs::msg::PointCloud2::SharedP
 }
 
 void dlio::OdomNode::preprocessPoints() {
-
   // Deskew the original dlio-type scan
   if (this->deskew_) {
-
     this->deskewPointcloud();
 
     if (!this->first_valid_scan) {
@@ -573,12 +565,10 @@ void dlio::OdomNode::preprocessPoints() {
     }
 
   } else {
-
     this->scan_stamp = rclcpp::Time(this->scan_header_stamp).seconds();
 
     // don't process scans until IMU data is present
     if (!this->first_valid_scan) {
-
       if (this->imu_buffer.empty() || this->scan_stamp <= this->imu_buffer.back().stamp) {
         return;
       }
@@ -587,18 +577,16 @@ void dlio::OdomNode::preprocessPoints() {
       this->T_prior = this->T; // assume no motion for the first scan
 
     } else {
-
       // IMU prior for second scan onwards
-    std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> frames;
+      std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> frames;
       frames = this->integrateImu(this->prev_scan_stamp, this->lidarPose.q, this->lidarPose.p,
                                 this->geo.prev_vel.cast<float>(), {this->scan_stamp});
 
-    if (frames.size() > 0) {
-      this->T_prior = frames.back();
-    } else {
-      this->T_prior = this->T;
-    }
-
+      if (frames.size() > 0) {
+        this->T_prior = frames.back();
+      } else {
+        this->T_prior = this->T;
+      }
     }
 
     pcl::PointCloud<PointType>::Ptr deskewed_scan_ = std::make_shared<pcl::PointCloud<PointType>>();
@@ -621,9 +609,8 @@ void dlio::OdomNode::preprocessPoints() {
 }
 
 void dlio::OdomNode::deskewPointcloud() {
-
   pcl::PointCloud<PointType>::Ptr deskewed_scan_ = std::make_shared<pcl::PointCloud<PointType>>(1, this->original_scan->points.size());
-  // deskewed_scan_->points.resize(this->original_scan->points.size());
+  
   // individual point timestamps should be relative to this time
   double sweep_ref_time = rclcpp::Time(this->scan_header_stamp).seconds();
 
@@ -634,42 +621,26 @@ void dlio::OdomNode::deskewPointcloud() {
   std::function<double(boost::range::index_value<PointType&, long>)> extract_point_time;
 
   if (this->sensor == dlio::SensorType::OUSTER) {
-
-    point_time_cmp = [](const PointType& p1, const PointType& p2)
-      { return p1.t < p2.t; };
+    point_time_cmp = [](const PointType& p1, const PointType& p2) { return p1.t < p2.t; };
     point_time_neq = [](boost::range::index_value<PointType&, long> p1,
-                        boost::range::index_value<PointType&, long> p2)
-      { return p1.value().t != p2.value().t; };
-    extract_point_time = [&sweep_ref_time](boost::range::index_value<PointType&, long> pt)
-      { return sweep_ref_time + pt.value().t * 1e-9f; };
-
+                        boost::range::index_value<PointType&, long> p2) { return p1.value().t != p2.value().t; };
+    extract_point_time = [&sweep_ref_time](boost::range::index_value<PointType&, long> pt) { return sweep_ref_time + pt.value().t * 1e-9f; };
   } else if (this->sensor == dlio::SensorType::VELODYNE) {
-
-    point_time_cmp = [](const PointType& p1, const PointType& p2)
-      { return p1.time < p2.time; };
+    point_time_cmp = [](const PointType& p1, const PointType& p2) { return p1.time < p2.time; };
     point_time_neq = [](boost::range::index_value<PointType&, long> p1,
-                        boost::range::index_value<PointType&, long> p2)
-      { return p1.value().time != p2.value().time; };
-    extract_point_time = [&sweep_ref_time](boost::range::index_value<PointType&, long> pt)
-      { return sweep_ref_time + pt.value().time; };
-
+                        boost::range::index_value<PointType&, long> p2) { return p1.value().time != p2.value().time; };
+    extract_point_time = [&sweep_ref_time](boost::range::index_value<PointType&, long> pt) { return sweep_ref_time + pt.value().time; };
   } else if (this->sensor == dlio::SensorType::HESAI) {
-
-    point_time_cmp = [](const PointType& p1, const PointType& p2)
-      { return p1.timestamp < p2.timestamp; };
+    point_time_cmp = [](const PointType& p1, const PointType& p2) { return p1.timestamp < p2.timestamp; };
     point_time_neq = [](boost::range::index_value<PointType&, long> p1,
-                        boost::range::index_value<PointType&, long> p2)
-      { return p1.value().timestamp != p2.value().timestamp; };
-    extract_point_time = [&sweep_ref_time](boost::range::index_value<PointType&, long> pt)
-      { return pt.value().timestamp; };
+                        boost::range::index_value<PointType&, long> p2) { return p1.value().timestamp != p2.value().timestamp; };
+    extract_point_time = [&sweep_ref_time](boost::range::index_value<PointType&, long> pt) { return pt.value().timestamp; };
   } else if (this->sensor == dlio::SensorType::LIVOX) {
-    point_time_cmp = [](const PointType& p1, const PointType& p2)
-      { return p1.timestamp < p2.timestamp; };
+    point_time_cmp = [](const PointType& p1, const PointType& p2) { return p1.timestamp < p2.timestamp; };
     point_time_neq = [](boost::range::index_value<PointType&, long> p1,
-                        boost::range::index_value<PointType&, long> p2)
-      { return p1.value().timestamp != p2.value().timestamp; };
-    extract_point_time = [&sweep_ref_time](boost::range::index_value<PointType&, long> pt)
-      { return pt.value().timestamp * 1e-9f; };
+                        boost::range::index_value<PointType&, long> p2) { return p1.value().timestamp != p2.value().timestamp; };
+    extract_point_time = [&sweep_ref_time](boost::range::index_value<PointType&, long> pt) { return pt.value().timestamp * 1e-9f; };
+  } else {
   }
 
   // copy points into deskewed_scan_ in order of timestamp
@@ -688,7 +659,9 @@ void dlio::OdomNode::deskewPointcloud() {
   // compute offset between sweep reference time and first point timestamp
   double offset = 0.0;
   if (this->time_offset_) {
-    offset = sweep_ref_time - extract_point_time(*points_unique_timestamps.begin());
+    if (points_unique_timestamps.begin() != points_unique_timestamps.end()) {
+      offset = sweep_ref_time - extract_point_time(*points_unique_timestamps.begin());
+    }
   }
 
   // build list of unique timestamps and indices of first point with each timestamp
@@ -700,7 +673,6 @@ void dlio::OdomNode::deskewPointcloud() {
 
   int median_pt_index = timestamps.size() / 2;
   this->scan_stamp = timestamps[median_pt_index]; // set this->scan_stamp to the timestamp of the median point
-
   // don't process scans until IMU data is present
   if (!this->first_valid_scan) {
     if (this->imu_buffer.empty() || this->scan_stamp <= this->imu_buffer.back().stamp) {
@@ -736,9 +708,8 @@ void dlio::OdomNode::deskewPointcloud() {
   // update prior to be the estimated pose at the median time of the scan (corresponds to this->scan_stamp)
   this->T_prior = frames[median_pt_index];
 
-#pragma omp parallel for num_threads(this->num_threads_)
+  #pragma omp parallel for num_threads(this->num_threads_)
   for (int i = 0; i < timestamps.size(); i++) {
-
     Eigen::Matrix4f T = frames[i] * this->extrinsics.baselink2lidar_T;
 
     // transform point to world frame
@@ -751,7 +722,6 @@ void dlio::OdomNode::deskewPointcloud() {
 
   this->deskewed_scan = deskewed_scan_;
   this->deskew_status = true;
-
 }
 
 void dlio::OdomNode::initializeInputTarget() {
@@ -784,6 +754,7 @@ void dlio::OdomNode::initializeDLIO() {
 }
 
 void dlio::OdomNode::callbackPointCloud(const sensor_msgs::msg::PointCloud2::SharedPtr pc) {
+  // if (!mission_selected) return;
 
   std::unique_lock<decltype(this->main_loop_running_mutex)> lock(main_loop_running_mutex);
   this->main_loop_running = true;
@@ -886,6 +857,7 @@ void dlio::OdomNode::callbackPointCloud(const sensor_msgs::msg::PointCloud2::Sha
 }
 
 void dlio::OdomNode::callbackImu(const sensor_msgs::msg::Imu::SharedPtr imu_raw) {
+  // if (!mission_selected) return;
 
   this->first_imu_received = true;
 
@@ -998,9 +970,12 @@ void dlio::OdomNode::callbackImu(const sensor_msgs::msg::Imu::SharedPtr imu_raw)
     }
 
   } else {
-
     double dt = imu_stamp_secs - this->prev_imu_stamp;
-    if (dt == 0) { dt = 1.0/200.0; }
+    
+    if (dt == 0) { 
+      dt = 1.0/200.0; 
+    }
+    
     this->imu_rates.push_back( 1./dt );
 
     // Apply the calibrated bias to the new IMU measurements
@@ -1013,12 +988,12 @@ void dlio::OdomNode::callbackImu(const sensor_msgs::msg::Imu::SharedPtr imu_raw)
 
     this->imu_meas.lin_accel = lin_accel_corrected;
     this->imu_meas.ang_vel = ang_vel_corrected;
-
+    
     // Store calibrated IMU measurements into imu buffer for manual integration later.
     this->mtx_imu.lock();
     this->imu_buffer.push_front(this->imu_meas);
     this->mtx_imu.unlock();
-
+    
     // Notify the callbackPointCloud thread that IMU data exists for this time
     this->cv_imu_stamp.notify_one();
 
@@ -1085,6 +1060,7 @@ bool dlio::OdomNode::imuMeasFromTimeRange(double start_time, double end_time,
 
   auto last_imu_it = imu_it;
   imu_it++;
+
   while (imu_it != this->imu_buffer.end() && imu_it->stamp >= end_time) {
     last_imu_it = imu_it;
     imu_it++;
@@ -1098,6 +1074,7 @@ bool dlio::OdomNode::imuMeasFromTimeRange(double start_time, double end_time,
     // not enough IMU measurements, return false
     return false;
   }
+  
   imu_it++;
 
   // Set reverse iterators (to iterate forward in time)
@@ -1114,14 +1091,12 @@ dlio::OdomNode::integrateImu(double start_time, Eigen::Quaternionf q_init, Eigen
   const std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> empty;
 
   if (sorted_timestamps.empty() || start_time > sorted_timestamps.front()) {
-    // invalid input, return empty vector
     return empty;
   }
 
   boost::circular_buffer<ImuMeas>::reverse_iterator begin_imu_it;
   boost::circular_buffer<ImuMeas>::reverse_iterator end_imu_it;
   if (this->imuMeasFromTimeRange(start_time, sorted_timestamps.back(), begin_imu_it, end_imu_it) == false) {
-    // not enough IMU measurements, return empty vector
     return empty;
   }
 
@@ -1180,7 +1155,9 @@ dlio::OdomNode::integrateImu(double start_time, Eigen::Quaternionf q_init, Eigen
   // Set p_init to position at first IMU sample (go backwards from start_time)
   p_init -= v_init*idt + 0.5*a1*idt*idt + (1/6.)*j*idt*idt*idt;
 
-  return this->integrateImuInternal(q_init, p_init, v_init, sorted_timestamps, begin_imu_it, end_imu_it);
+  auto result = this->integrateImuInternal(q_init, p_init, v_init, sorted_timestamps, begin_imu_it, end_imu_it);
+  
+  return result;
 }
 
 std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>>
@@ -1921,7 +1898,7 @@ void dlio::OdomNode::debug() {
     std::accumulate(this->cpu_percents.begin(), this->cpu_percents.end(), 0.0) / this->cpu_percents.size();
 
   // Print to terminal
-  /* printf("\033[2J\033[1;1H");
+  /*printf("\033[2J\033[1;1H");
 
   std::cout << std::endl
             << "+-------------------------------------------------------------------+" << std::endl;
