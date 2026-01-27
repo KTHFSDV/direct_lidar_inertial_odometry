@@ -35,30 +35,54 @@ dlio::OdomNode::OdomNode() : Node("dlio_odom_node") {
   this->deskew_size = 0;
   this->stateHasBeenUpdated = false;
 
+  this->lidar_cb_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  auto lidar_sub_opt = rclcpp::SubscriptionOptions();
+  lidar_sub_opt.callback_group = this->lidar_cb_group;
   this->lidar_sub = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-    "pointcloud", rclcpp::QoS(1), std::bind(&dlio::OdomNode::callbackPointCloud, this, std::placeholders::_1));
+    "pointcloud", rclcpp::QoS(1), std::bind(&dlio::OdomNode::callbackPointCloud, this, std::placeholders::_1), lidar_sub_opt);
 
+  this->mission_cb_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  auto mission_sub_opt = rclcpp::SubscriptionOptions();
+  mission_sub_opt.callback_group = this->mission_cb_group;
   this->mission_sub = this->create_subscription<std_msgs::msg::Int16>(
-      "mission", rclcpp::QoS(1), std::bind(&dlio::OdomNode::callbackMission, this, std::placeholders::_1));
+      "mission", rclcpp::QoS(1), std::bind(&dlio::OdomNode::callbackMission, this, std::placeholders::_1), mission_sub_opt);
 
-  this->imu_sub = this->create_subscription<sensor_msgs::msg::Imu>(
-      "imu", rclcpp::QoS(1000), std::bind(&dlio::OdomNode::callbackImu, this, std::placeholders::_1));
+  if (this->use_can_imu_) {
+    std::cout << "Using ROS2CAN IMU messages." << std::endl;
 
-  this->accel_sub_.subscribe(this, "accel");
-  this->gyro_sub_.subscribe(this, "gyro");
-  this->time_sub_.subscribe(this, "timestamp");
+    this->combined_imu_cb_group = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
 
-  using SyncPolicy = message_filters::sync_policies::ApproximateTime<
-    ros2can_msgs::msg::SbgEcanMsgImuAccel,
-    ros2can_msgs::msg::SbgEcanMsgImuGyro>;
+    rclcpp::SubscriptionOptions sub_opts;
+    sub_opts.callback_group = this->combined_imu_cb_group;
 
-  this->sync_.reset(new message_filters::Synchronizer<SyncPolicy>(
-    SyncPolicy(1000), this->accel_sub_, this->gyro_sub_));
+    rmw_qos_profile_t combined_imu_qos = rmw_qos_profile_default;
+    combined_imu_qos.depth = 1000;
 
-  // Register the combined callback
-  // this->sync_->registerCallback(
-  //     std::bind(&dlio::OdomNode::callbackAccelGyro, this,
-  //               std::placeholders::_1, std::placeholders::_2));
+    this->accel_sub_.subscribe(this, "accel", combined_imu_qos, sub_opts);
+    this->gyro_sub_.subscribe(this, "gyro", combined_imu_qos, sub_opts);
+    this->time_sub_.subscribe(this, "timestamp", combined_imu_qos, sub_opts);
+
+    using SyncPolicy = message_filters::sync_policies::ApproximateTime<
+        ros2can_msgs::msg::SbgEcanMsgImuAccel,
+        ros2can_msgs::msg::SbgEcanMsgImuGyro,
+        ros2can_msgs::msg::SbgEcanMsgImuInfo>;
+
+    this->sync_.reset(new message_filters::Synchronizer<SyncPolicy>(
+        SyncPolicy(1000), this->accel_sub_, this->gyro_sub_, this->time_sub_));
+
+    this->sync_->registerCallback(
+        std::bind(&dlio::OdomNode::callbackAccelGyro, this,
+                  std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+  } else {
+    std::cout << "Using standard IMU messages." << std::endl;
+
+    this->imu_cb_group = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    auto imu_sub_opt = rclcpp::SubscriptionOptions();
+    imu_sub_opt.callback_group = this->imu_cb_group;
+
+    this->imu_sub = this->create_subscription<sensor_msgs::msg::Imu>(
+      "imu", rclcpp::QoS(1000), std::bind(&dlio::OdomNode::callbackImu, this, std::placeholders::_1), imu_sub_opt);
+  }
 
   this->odom_pub     = this->create_publisher<nav_msgs::msg::Odometry>("odom", 1);
   this->pose_pub     = this->create_publisher<geometry_msgs::msg::PoseStamped>("pose", 1);
@@ -207,6 +231,9 @@ void dlio::OdomNode::getParams() {
   // Debug
   dlio::declare_param<bool>(this, "debug", this->debug_, false);
 
+  // Combined IMU (ACCEL + GYRO + TIMESTAMP) from ros2can
+  dlio::declare_param<bool>(this, "use_can_imu", this->use_can_imu_, false);
+
   // Frames
   dlio::declare_param<std::string>(this, "frames/odom", this->odom_frame, "odom");
   dlio::declare_param<std::string>(this, "frames/baselink", this->baselink_frame, "base_link");
@@ -227,7 +254,6 @@ void dlio::OdomNode::getParams() {
   std::cout << "baselink_frame: " << this->baselink_frame << std::endl;
   std::cout << "lidar_frame: " << this->lidar_frame << std::endl;
   std::cout << "imu_frame: " << this->imu_frame << std::endl;
-
 
   // Deskew Flag
   dlio::declare_param(this, "pointcloud/deskew", this->deskew_, true);
@@ -901,7 +927,8 @@ void dlio::OdomNode::callbackPointCloud(const sensor_msgs::msg::PointCloud2::Sha
 
 void dlio::OdomNode::callbackAccelGyro(
   const ros2can_msgs::msg::SbgEcanMsgImuAccel::ConstSharedPtr accel_msg,
-  const ros2can_msgs::msg::SbgEcanMsgImuGyro::ConstSharedPtr gyro_msg
+  const ros2can_msgs::msg::SbgEcanMsgImuGyro::ConstSharedPtr gyro_msg,
+  const ros2can_msgs::msg::SbgEcanMsgImuInfo::ConstSharedPtr timestamp_msg
 ) {
 
   auto imu_raw = std::make_shared<sensor_msgs::msg::Imu>();

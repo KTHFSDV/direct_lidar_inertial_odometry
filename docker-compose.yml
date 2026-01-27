@@ -13,6 +13,7 @@ services:
       - PACKAGE_NAME=direct_lidar_inertial_odometry
     volumes:
       - ./:/ws/src/direct_lidar_inertial_odometry
+      - ./:/ws/src/ros2can_msgs
     network_mode: host
     entrypoint: /ws/src/direct_lidar_inertial_odometry/docker-entrypoint.sh 
     command: bash -c "source install/setup.bash && sleep infinity"

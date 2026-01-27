@@ -14,6 +14,8 @@
   ros__parameters:
     debug: true
 
+    use_ros2can_imu: false
+
     use_sim_time: true
     frames/odom: odom
     frames/baselink: base_link

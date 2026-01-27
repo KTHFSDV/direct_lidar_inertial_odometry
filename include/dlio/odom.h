@@ -74,8 +74,11 @@ private:
     const Eigen::Vector3f& t,
     const Eigen::Matrix3f& R
   );
-  void callbackAccelGyro(const ros2can_msgs::msg::SbgEcanMsgImuAccel::ConstSharedPtr accel_msg,
-                        const ros2can_msgs::msg::SbgEcanMsgImuGyro::ConstSharedPtr gyro_msg);
+  void callbackAccelGyro(
+    const ros2can_msgs::msg::SbgEcanMsgImuAccel::ConstSharedPtr accel_msg,
+    const ros2can_msgs::msg::SbgEcanMsgImuGyro::ConstSharedPtr gyro_msg,
+    const ros2can_msgs::msg::SbgEcanMsgImuInfo::ConstSharedPtr timestamp_msg
+  );
   void callbackMission(const std_msgs::msg::Int16& msg);
 
   void publishPose();
@@ -145,9 +148,10 @@ private:
   message_filters::Subscriber<ros2can_msgs::msg::SbgEcanMsgImuInfo> time_sub_;
   std::shared_ptr<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<
       ros2can_msgs::msg::SbgEcanMsgImuAccel,
-      ros2can_msgs::msg::SbgEcanMsgImuGyro>>> sync_;
+      ros2can_msgs::msg::SbgEcanMsgImuGyro,
+      ros2can_msgs::msg::SbgEcanMsgImuInfo>>> sync_;
 
-  rclcpp::CallbackGroup::SharedPtr lidar_cb_group, imu_cb_group, mission_cb_group;
+  rclcpp::CallbackGroup::SharedPtr lidar_cb_group, imu_cb_group, combined_imu_cb_group, mission_cb_group;
   
   // Publishers
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub;
@@ -350,6 +354,8 @@ private:
   std::string version_;
 
   bool debug_;
+
+  bool use_can_imu_;
   
   int num_threads_;
 
