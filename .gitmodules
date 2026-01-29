@@ -1,0 +1,4 @@
+[submodule "external/ros2can_msgs"]
+	path = external/ros2can_msgs
+	url = git@github.com:KTHFSDV/ros2can_msgs.git
+	branch = ros2
