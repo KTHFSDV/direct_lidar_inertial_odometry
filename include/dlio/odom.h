@@ -10,14 +10,14 @@
  *                                                         *
  ***********************************************************/
 
-#include "dlio/dlio.h"
+#include <dlio/dlio.h>
 
 // ROS
-#include "rclcpp/rclcpp.hpp"
+#include <rclcpp/rclcpp.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
-#include "std_msgs/msg/int16.hpp"
+#include <std_msgs/msg/int16.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
@@ -26,7 +26,7 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <ros2can_msgs/msg/sbg_ecan_msg_imu_accel.hpp>
 #include <ros2can_msgs/msg/sbg_ecan_msg_imu_gyro.hpp>
-#include "ros2can_msgs/msg/sbg_ecan_msg_imu_info.hpp"
+#include <ros2can_msgs/msg/sbg_ecan_msg_imu_info.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 
 // BOOST
@@ -270,10 +270,10 @@ private:
       Eigen::Matrix3f R;
     };
     SE3 baselink2imu;
-    SE3 baselink2combinedimu;
+    SE3 baselink2ros2canimu;
     SE3 baselink2lidar;
     Eigen::Matrix4f baselink2imu_T;
-    Eigen::Matrix4f baselink2combinedimu_T;
+    Eigen::Matrix4f baselink2ros2canimu_T;
     Eigen::Matrix4f baselink2lidar_T;
   }; Extrinsics extrinsics;
 

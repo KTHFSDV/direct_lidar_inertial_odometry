@@ -32,8 +32,8 @@
                                  0.,  1.,  0.,
                                  0.,  0.,  1. ]
     
-    extrinsics/baselink2combinedimu/t: [ 0.71, 0.0, 0.316 ] 
-    extrinsics/baselink2combinedimu/R: [-1.,  0.,  0.,
+    extrinsics/baselink2ros2canimu/t: [ 0.71, 0.0, 0.316 ] 
+    extrinsics/baselink2ros2canimu/R: [-1.,  0.,  0.,
                                          0.,  1.,  0.,
                                          0.,  0., -1. ]
                   

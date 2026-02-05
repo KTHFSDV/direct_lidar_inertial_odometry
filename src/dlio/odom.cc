@@ -13,6 +13,9 @@
 #include "dlio/odom.h"
 #include "dlio/utils.h"
 
+#include <proxsuite/proxqp/dense/dense.hpp>
+#include <iostream>
+
 #include <queue>
 
 #include "rclcpp/qos.hpp"
@@ -309,16 +312,16 @@ void dlio::OdomNode::getParams() {
   this->extrinsics.baselink2imu_T.block(0, 0, 3, 3) = this->extrinsics.baselink2imu.R;
 
   // center of gravity to combined accel and gyro imu
-  std::vector<double> baselink2combinedimu_t, baselink2combinedimu_R;
-  dlio::declare_param(this, "extrinsics/baselink2combinedimu/t", baselink2combinedimu_t, t_default);
-  dlio::declare_param(this, "extrinsics/baselink2combinedimu/R", baselink2combinedimu_R, R_default);
-  this->extrinsics.baselink2combinedimu.t =
-    Eigen::Vector3f(baselink2imu_t[0], baselink2imu_t[1], baselink2imu_t[2]);
-  this->extrinsics.baselink2combinedimu.R =
-    Eigen::Map<const Eigen::Matrix<float, -1, -1, Eigen::RowMajor>>(std::vector<float>(baselink2combinedimu_R.begin(), baselink2combinedimu_R.end()).data(), 3, 3);
-  this->extrinsics.baselink2combinedimu_T = Eigen::Matrix4f::Identity();
-  this->extrinsics.baselink2combinedimu_T.block(0, 3, 3, 1) = this->extrinsics.baselink2combinedimu.t;
-  this->extrinsics.baselink2combinedimu_T.block(0, 0, 3, 3) = this->extrinsics.baselink2combinedimu.R;
+  std::vector<double> baselink2ros2canimu_t, baselink2ros2canimu_R;
+  dlio::declare_param(this, "extrinsics/baselink2ros2canimu/t", baselink2ros2canimu_t, t_default);
+  dlio::declare_param(this, "extrinsics/baselink2ros2canimu/R", baselink2ros2canimu_R, R_default);
+  this->extrinsics.baselink2ros2canimu.t =
+    Eigen::Vector3f(baselink2ros2canimu_t[0], baselink2ros2canimu_t[1], baselink2ros2canimu_t[2]);
+  this->extrinsics.baselink2ros2canimu.R =
+    Eigen::Map<const Eigen::Matrix<float, -1, -1, Eigen::RowMajor>>(std::vector<float>(baselink2ros2canimu_R.begin(), baselink2ros2canimu_R.end()).data(), 3, 3);
+  this->extrinsics.baselink2ros2canimu_T = Eigen::Matrix4f::Identity();
+  this->extrinsics.baselink2ros2canimu_T.block(0, 3, 3, 1) = this->extrinsics.baselink2ros2canimu.t;
+  this->extrinsics.baselink2ros2canimu_T.block(0, 0, 3, 3) = this->extrinsics.baselink2ros2canimu.R;
 
   // center of gravity to lidar
   std::vector<double> baselink2lidar_t, baselink2lidar_R;
@@ -589,28 +592,6 @@ void dlio::OdomNode::getScanFromROS(const sensor_msgs::msg::PointCloud2::SharedP
   this->crop.setInputCloud(original_scan_);
   this->crop.filter(*original_scan_);
 
-  // automatically detect sensor type
-  this->sensor = dlio::SensorType::UNKNOWN;
-  for (auto &field : pc->fields) {
-    if (field.name == "t") {
-      this->sensor = dlio::SensorType::OUSTER;
-      break;
-    } else if (field.name == "time") {
-      this->sensor = dlio::SensorType::VELODYNE;
-      break;
-    } else if (field.name == "timestamp" && original_scan_->points[0].timestamp < 1e14) {
-      this->sensor = dlio::SensorType::HESAI;
-      break;
-    } else if (field.name == "timestamp" && original_scan_->points[0].timestamp > 1e14) {
-      this->sensor = dlio::SensorType::LIVOX;
-      break;
-    }
-  }
-
-  if (this->sensor == dlio::SensorType::UNKNOWN) {
-    this->deskew_ = false;
-  }
-
   this->scan_header_stamp = pc->header.stamp;
   this->original_scan = original_scan_;
 
@@ -681,28 +662,10 @@ void dlio::OdomNode::deskewPointcloud() {
                      boost::range::index_value<PointType&, long>)> point_time_neq;
   std::function<double(boost::range::index_value<PointType&, long>)> extract_point_time;
 
-  if (this->sensor == dlio::SensorType::OUSTER) {
-    point_time_cmp = [](const PointType& p1, const PointType& p2) { return p1.t < p2.t; };
-    point_time_neq = [](boost::range::index_value<PointType&, long> p1,
-                        boost::range::index_value<PointType&, long> p2) { return p1.value().t != p2.value().t; };
-    extract_point_time = [&sweep_ref_time](boost::range::index_value<PointType&, long> pt) { return sweep_ref_time + pt.value().t * 1e-9f; };
-  } else if (this->sensor == dlio::SensorType::VELODYNE) {
-    point_time_cmp = [](const PointType& p1, const PointType& p2) { return p1.time < p2.time; };
-    point_time_neq = [](boost::range::index_value<PointType&, long> p1,
-                        boost::range::index_value<PointType&, long> p2) { return p1.value().time != p2.value().time; };
-    extract_point_time = [&sweep_ref_time](boost::range::index_value<PointType&, long> pt) { return sweep_ref_time + pt.value().time; };
-  } else if (this->sensor == dlio::SensorType::HESAI) {
-    point_time_cmp = [](const PointType& p1, const PointType& p2) { return p1.timestamp < p2.timestamp; };
-    point_time_neq = [](boost::range::index_value<PointType&, long> p1,
-                        boost::range::index_value<PointType&, long> p2) { return p1.value().timestamp != p2.value().timestamp; };
-    extract_point_time = [&sweep_ref_time](boost::range::index_value<PointType&, long> pt) { return pt.value().timestamp; };
-  } else if (this->sensor == dlio::SensorType::LIVOX) {
-    point_time_cmp = [](const PointType& p1, const PointType& p2) { return p1.timestamp < p2.timestamp; };
-    point_time_neq = [](boost::range::index_value<PointType&, long> p1,
-                        boost::range::index_value<PointType&, long> p2) { return p1.value().timestamp != p2.value().timestamp; };
-    extract_point_time = [&sweep_ref_time](boost::range::index_value<PointType&, long> pt) { return pt.value().timestamp * 1e-9f; };
-  } else {
-  }
+  point_time_cmp = [](const PointType& p1, const PointType& p2) { return p1.t < p2.t; };
+  point_time_neq = [](boost::range::index_value<PointType&, long> p1,
+                      boost::range::index_value<PointType&, long> p2) { return p1.value().t != p2.value().t; };
+  extract_point_time = [&sweep_ref_time](boost::range::index_value<PointType&, long> pt) { return sweep_ref_time + pt.value().t * 1e-9f; };
 
   // copy points into deskewed_scan_ in order of timestamp
   std::partial_sort_copy(this->original_scan->points.begin(), this->original_scan->points.end(),
@@ -944,8 +907,8 @@ void dlio::OdomNode::callbackAccelGyro(
   
   processImu(
     imu_raw, 
-    this->extrinsics.baselink2combinedimu.t, 
-    this->extrinsics.baselink2combinedimu.R
+    this->extrinsics.baselink2ros2canimu.t, 
+    this->extrinsics.baselink2ros2canimu.R
   );
 }
 
@@ -2023,32 +1986,10 @@ void dlio::OdomNode::debug() {
       << "|" << std::endl;
   }
 
-  if (this->sensor == dlio::SensorType::OUSTER) {
-    std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-      << "Sensor Rates: Ouster @ " + to_string_with_precision(avg_lidar_rate, 2)
-                                   + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
-      << "|" << std::endl;
-  } else if (this->sensor == dlio::SensorType::VELODYNE) {
-    std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-      << "Sensor Rates: Velodyne @ " + to_string_with_precision(avg_lidar_rate, 2)
-                                     + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
-      << "|" << std::endl;
-  } else if (this->sensor == dlio::SensorType::HESAI) {
-    std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-      << "Sensor Rates: Hesai @ " + to_string_with_precision(avg_lidar_rate, 2)
-                                  + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
-      << "|" << std::endl;
-  } else if (this->sensor == dlio::SensorType::LIVOX) {
-    std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-      << "Sensor Rates: Livox @ " + to_string_with_precision(avg_lidar_rate, 2)
-                                  + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
-      << "|" << std::endl;
-  } else {
-    std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
-      << "Sensor Rates: Unknown LiDAR @ " + to_string_with_precision(avg_lidar_rate, 2)
-                                          + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
-      << "|" << std::endl;
-  }
+  std::cout << "| " << std::left << std::setfill(' ') << std::setw(66)
+    << "Sensor Rates: Ouster @ " + to_string_with_precision(avg_lidar_rate, 2)
+                                 + " Hz, IMU @ " + to_string_with_precision(avg_imu_rate, 2) + " Hz"
+    << "|" << std::endl;
 
   std::cout << "|===================================================================|" << std::endl;
 
