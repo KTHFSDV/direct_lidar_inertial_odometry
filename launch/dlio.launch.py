@@ -28,7 +28,7 @@ def generate_launch_description():
     # Set default arguments
     rviz = LaunchConfiguration('rviz', default='false')
     mapping = LaunchConfiguration('mapping', default='false')
-    robot_namespace = LaunchConfiguration('robot_namespace', default='robot')
+    robot_namespace = LaunchConfiguration('robot_namespace', default='')
     pointcloud_topic = LaunchConfiguration('pointcloud_topic', default='/ouster/points')
     imu_topic = LaunchConfiguration('imu_topic', default='/ouster/imu')
     mission_topic = LaunchConfiguration('mission_topic', default='/state_machine/mission')
