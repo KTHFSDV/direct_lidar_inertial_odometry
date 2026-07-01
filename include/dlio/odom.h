@@ -10,15 +10,52 @@
  *                                                         *
  ***********************************************************/
 
-#include "dlio/dlio.h"
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
+#include <dlio/dlio.h>
 
-class dlio::OdomNode {
+// ROS
+#include <rclcpp/rclcpp.hpp>
+#include <message_filters/subscriber.h>
+#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/synchronizer.h>
+#include <std_msgs/msg/int16.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose_array.hpp>
+#include <nav_msgs/msg/path.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <ros2can_msgs/msg/sbg_ecan_msg_imu_accel.hpp>
+#include <ros2can_msgs/msg/sbg_ecan_msg_imu_gyro.hpp>
+#include <ros2can_msgs/msg/sbg_ecan_msg_imu_info.hpp>
+#include <tf2_ros/transform_broadcaster.h>
+
+// BOOST
+#include <boost/format.hpp>
+#include <boost/circular_buffer.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/range/adaptor/indexed.hpp>
+#include <boost/range/adaptor/adjacent_filtered.hpp>
+
+// PCL
+#include <pcl/filters/crop_box.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/surface/concave_hull.h>
+#include <pcl/surface/convex_hull.h>
+#include <pcl_conversions/pcl_conversions.h>
+
+// GICP
+#include <small_gicp/pcl/pcl_registration.hpp>
+#include <small_gicp/pcl/pcl_registration_impl.hpp>
+#include <small_gicp/util/downsampling_omp.hpp>
+
+
+class dlio::OdomNode: public rclcpp::Node {
 
 public:
 
-  OdomNode(ros::NodeHandle node_handle);
+  OdomNode();
   ~OdomNode();
 
   void start();
@@ -30,18 +67,28 @@ private:
 
   void getParams();
 
-  void callbackPointCloud(const sensor_msgs::PointCloud2ConstPtr& pc);
-  void callbackImu(const sensor_msgs::Imu::ConstPtr& imu);
-  void callbackMission(const std_msgs::Int16& msg);
+  void callbackPointCloud(const sensor_msgs::msg::PointCloud2::SharedPtr pc);
+  void callbackImu(const sensor_msgs::msg::Imu::SharedPtr imu);
+  void processImu(
+    const sensor_msgs::msg::Imu::SharedPtr& imu,
+    const Eigen::Vector3f& t,
+    const Eigen::Matrix3f& R
+  );
+  void callbackAccelGyro(
+    const ros2can_msgs::msg::SbgEcanMsgImuAccel::ConstSharedPtr accel_msg,
+    const ros2can_msgs::msg::SbgEcanMsgImuGyro::ConstSharedPtr gyro_msg,
+    const ros2can_msgs::msg::SbgEcanMsgImuInfo::ConstSharedPtr timestamp_msg
+  );
+  void callbackMission(const std_msgs::msg::Int16& msg);
 
-  void publishPose(const ros::TimerEvent& e);
+  void publishPose();
 
   void publishToROS(pcl::PointCloud<PointType>::ConstPtr published_cloud, Eigen::Matrix4f T_cloud);
   void publishCloud(pcl::PointCloud<PointType>::ConstPtr published_cloud, Eigen::Matrix4f T_cloud);
   void publishKeyframe(std::pair<std::pair<Eigen::Vector3f, Eigen::Quaternionf>,
-                       pcl::PointCloud<PointType>::ConstPtr> kf, ros::Time timestamp);
+                       pcl::PointCloud<PointType>::ConstPtr> kf, rclcpp::Time timestamp);
 
-  void getScanFromROS(const sensor_msgs::PointCloud2ConstPtr& pc);
+  void getScanFromROS(const sensor_msgs::msg::PointCloud2::SharedPtr& pc);
   void preprocessPoints();
   void deskewPointcloud();
   void initializeInputTarget();
@@ -73,7 +120,12 @@ private:
   void computeSpaciousness();
   void computeDensity();
 
-  sensor_msgs::Imu::Ptr transformImu(const sensor_msgs::Imu::ConstPtr& imu);
+  // sensor_msgs::msg::Imu::SharedPtr transformImu(const sensor_msgs::msg::Imu::SharedPtr& imu);
+  sensor_msgs::msg::Imu::SharedPtr transformImu(
+    const sensor_msgs::msg::Imu::SharedPtr& imu,
+    const Eigen::Vector3f& t,
+    const Eigen::Matrix3f& R
+  );
 
   void updateKeyframes();
   void computeConvexHull();
@@ -85,31 +137,38 @@ private:
 
   void debug();
 
-  ros::NodeHandle nh;
-  ros::Timer publish_timer;
+  rclcpp::TimerBase::SharedPtr publish_timer;
 
   // Subscribers
-  ros::Subscriber lidar_sub;
-  ros::Subscriber imu_sub;
-  ros::Subscriber mission_sub;
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr lidar_sub;
+  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub;
+  rclcpp::Subscription<std_msgs::msg::Int16>::SharedPtr mission_sub;
+  message_filters::Subscriber<ros2can_msgs::msg::SbgEcanMsgImuAccel> accel_sub_;
+  message_filters::Subscriber<ros2can_msgs::msg::SbgEcanMsgImuGyro> gyro_sub_;
+  message_filters::Subscriber<ros2can_msgs::msg::SbgEcanMsgImuInfo> time_sub_;
+  std::shared_ptr<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<
+      ros2can_msgs::msg::SbgEcanMsgImuAccel,
+      ros2can_msgs::msg::SbgEcanMsgImuGyro,
+      ros2can_msgs::msg::SbgEcanMsgImuInfo>>> sync_;
 
+  rclcpp::CallbackGroup::SharedPtr lidar_cb_group, imu_cb_group, combined_imu_cb_group, mission_cb_group;
+  
   // Publishers
-  ros::Publisher odom_pub;
-  ros::Publisher pose_pub;
-  ros::Publisher path_pub;
-  ros::Publisher kf_pose_pub;
-  ros::Publisher kf_cloud_pub;
-  ros::Publisher deskewed_pub;
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub;
+  rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr kf_pose_pub;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr kf_cloud_pub;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr deskewed_pub;
+
+  // TF
+  std::shared_ptr<tf2_ros::TransformBroadcaster> br;
 
   // ROS Msgs
-  nav_msgs::Odometry odom_ros;
-  geometry_msgs::PoseStamped pose_ros;
-  nav_msgs::Path path_ros;
-  geometry_msgs::PoseArray kf_pose_ros;
-
-  // ROS Transform listener
-  tf2_ros::Buffer tf_buffer_;
-  tf2_ros::TransformListener tf_listener_;
+  nav_msgs::msg::Odometry odom_ros;
+  geometry_msgs::msg::PoseStamped pose_ros;
+  nav_msgs::msg::Path path_ros;
+  geometry_msgs::msg::PoseArray kf_pose_ros;
 
   // Flags
   std::atomic<bool> dlio_initialized;
@@ -135,8 +194,8 @@ private:
   // Keyframes
   std::vector<std::pair<std::pair<Eigen::Vector3f, Eigen::Quaternionf>,
                         pcl::PointCloud<PointType>::ConstPtr>> keyframes;
-  std::vector<ros::Time> keyframe_timestamps;
-  std::vector<std::shared_ptr<const nano_gicp::CovarianceList>> keyframe_normals;
+  std::vector<rclcpp::Time> keyframe_timestamps;
+  std::vector<std::shared_ptr<std::vector<Eigen::Matrix4d>>> keyframe_normals;
   std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> keyframe_transformations;
   std::mutex keyframes_mutex;
 
@@ -169,8 +228,9 @@ private:
 
   // Submap
   pcl::PointCloud<PointType>::ConstPtr submap_cloud;
-  std::shared_ptr<const nano_gicp::CovarianceList> submap_normals;
-  std::shared_ptr<const nanoflann::KdTreeFLANN<PointType>> submap_kdtree;
+  std::shared_ptr<std::vector<Eigen::Matrix4d>> submap_normals;
+
+  std::shared_ptr<small_gicp::KdTree<pcl::PointCloud<PointType>>> submap_kdtree;
 
   std::vector<int> submap_kf_idx_curr;
   std::vector<int> submap_kf_idx_prev;
@@ -182,7 +242,7 @@ private:
   std::mutex main_loop_running_mutex;
 
   // Timestamps
-  ros::Time scan_header_stamp;
+  rclcpp::Time scan_header_stamp;
   double scan_stamp;
   double prev_scan_stamp;
   double scan_dt;
@@ -193,9 +253,10 @@ private:
   double first_scan_stamp;
   double elapsed_time;
 
-  // GICP
-  nano_gicp::NanoGICP<PointType, PointType> gicp;
-  nano_gicp::NanoGICP<PointType, PointType> gicp_temp;
+  //Small GICP
+  small_gicp::RegistrationPCL<PointType, PointType> small_gicp;
+  small_gicp::RegistrationPCL<PointType, PointType> small_gicp_temp;
+  
 
   // Transformations
   Eigen::Matrix4f T, T_prior, T_corr;
@@ -209,13 +270,15 @@ private:
       Eigen::Matrix3f R;
     };
     SE3 baselink2imu;
+    SE3 baselink2ros2canimu;
     SE3 baselink2lidar;
     Eigen::Matrix4f baselink2imu_T;
+    Eigen::Matrix4f baselink2ros2canimu_T;
     Eigen::Matrix4f baselink2lidar_T;
   }; Extrinsics extrinsics;
 
   // IMU
-  ros::Time imu_stamp;
+  rclcpp::Time imu_stamp;
   double first_imu_stamp;
   double prev_imu_stamp;
   double imu_dp, imu_dq_deg;
@@ -289,11 +352,18 @@ private:
 
   // Parameters
   std::string version_;
+
+  bool debug_;
+
+  bool use_can_imu_;
+  
   int num_threads_;
 
   bool deskew_;
 
   double gravity_;
+
+  bool time_offset_;
 
   bool adaptive_params_;
 
@@ -341,8 +411,7 @@ private:
   double geo_abias_max_;
   double geo_gbias_max_;
 
-  //Misc
+  // Misc
   bool publish_transforms;
   bool stateHasBeenUpdated;
-
 };

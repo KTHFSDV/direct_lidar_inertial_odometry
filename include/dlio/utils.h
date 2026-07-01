@@ -10,18 +10,13 @@
  *                                                         *
  ***********************************************************/
 
-#include "dlio/odom.h"
+#include <rclcpp/rclcpp.hpp>
 
-int main(int argc, char** argv) {
+namespace dlio {
 
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<dlio::OdomNode>();
-  rclcpp::executors::MultiThreadedExecutor executor;
-  executor.add_node(node);
-  node->start();
-  executor.spin();
-  rclcpp::shutdown();
-
-  return 0;
+    template <typename T>
+    void declare_param(rclcpp::Node* node, const std::string& param_name, T& param, const T& default_value) {
+        param = node->declare_parameter(param_name, default_value);
+    }
 
 }

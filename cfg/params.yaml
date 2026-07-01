@@ -10,66 +10,52 @@
 #                                                         #
 ###########################################################
 
-dlio:
+/**:
+  ros__parameters:
+    debug: true
 
-  frames:
-    odom: odom
-    baselink: base_link
-    lidar: os_sensor
-    imu: os_imu
+    use_ros2can_imu: false
 
-  # map:
-  #   waitUntilMove: true
-  #   dense:
-  #     filtered: false
-  #   sparse:
-  #     frequency: 1.0
-  #     leafSize: 0.5
+    use_sim_time: true
+    frames/odom: odom
+    frames/baselink: base_link
+    frames/lidar: os_sensor
+    frames/imu: os_imu
 
-  odom:
+    map/waitUntilMove: true
+    map/dense/filtered: false
+    map/sparse/leafSize: 0.05
 
-    gravity: 9.80665
+    odom/gravity: 9.80665
+    odom/computeTimeOffset: true
 
-    imu:
-      approximateGravity: false
-      calibration:
-        gyro: true
-        accel: true
-        time: 4
-      bufferSize: 50000
+    odom/imu/approximateGravity: true
+    odom/imu/calibration/gyro: true
+    odom/imu/calibration/accel: true
+    odom/imu/calibration/time: 3.0
+    odom/imu/bufferSize: 5000
 
-    preprocessing:
-      cropBoxFilter:
-        size: 3.0
-      voxelFilter:
-        res: 1
+    odom/preprocessing/cropBoxFilter/size: 3.0
+    odom/preprocessing/voxelFilter/res: 1.0
 
-    keyframe:
-      threshD: 1.0
-      threshR: 45.0
+    odom/keyframe/threshD: 1.0
+    odom/keyframe/threshR: 45.0
 
-    submap:
-      keyframe:
-        knn: 10
-        kcv: 10
-        kcc: 10
-    gicp:
-      minNumPoints: 128
-      kCorrespondences: 10
-      maxCorrespondenceDistance: 0.5
-      maxIterations: 32
-      transformationEpsilon: 0.01
-      rotationEpsilon: 0.01
-      initLambdaFactor: 1e-9
+    odom/submap/keyframe/knn: 10
+    odom/submap/keyframe/kcv: 10
+    odom/submap/keyframe/kcc: 10
+    odom/gicp/minNumPoints: 64
+    odom/gicp/kCorrespondences: 16
+    odom/gicp/maxCorrespondenceDistance: 0.5
+    odom/gicp/maxIterations: 32
+    odom/gicp/transformationEpsilon: 0.01
+    odom/gicp/rotationEpsilon: 0.01
+    odom/gicp/initLambdaFactor: 1e-9
 
-    geo:
-      Kp: 4.5
-      Kv: 11.25
-      Kq: 4.0
-      Kab: 2.25
-      Kgb: 1.0
-      abias_max: 5.0
-      gbias_max: 0.5
-  
-  misc:
-    publish_transforms: false
+    odom/geo/Kp: 4.5
+    odom/geo/Kv: 11.25
+    odom/geo/Kq: 4.0
+    odom/geo/Kab: 2.25
+    odom/geo/Kgb: 1.0
+    odom/geo/abias_max: 5.0
+    odom/geo/gbias_max: 0.5
