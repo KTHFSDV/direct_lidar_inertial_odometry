@@ -10,17 +10,23 @@
  *                                                         *
  ***********************************************************/
 
-#include "dlio/dlio.h"
+#include <dlio/dlio.h>
 
 // ROS
-#include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/int16.hpp"
+#include <rclcpp/rclcpp.hpp>
+#include <message_filters/subscriber.h>
+#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/synchronizer.h>
+#include <std_msgs/msg/int16.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <ros2can_msgs/msg/sbg_ecan_msg_imu_accel.hpp>
+#include <ros2can_msgs/msg/sbg_ecan_msg_imu_gyro.hpp>
+#include <ros2can_msgs/msg/sbg_ecan_msg_imu_info.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 
 // BOOST
@@ -38,6 +44,12 @@
 #include <pcl/surface/concave_hull.h>
 #include <pcl/surface/convex_hull.h>
 #include <pcl_conversions/pcl_conversions.h>
+
+// GICP
+#include <small_gicp/pcl/pcl_registration.hpp>
+#include <small_gicp/pcl/pcl_registration_impl.hpp>
+#include <small_gicp/util/downsampling_omp.hpp>
+
 
 class dlio::OdomNode: public rclcpp::Node {
 
@@ -57,6 +69,16 @@ private:
 
   void callbackPointCloud(const sensor_msgs::msg::PointCloud2::SharedPtr pc);
   void callbackImu(const sensor_msgs::msg::Imu::SharedPtr imu);
+  void processImu(
+    const sensor_msgs::msg::Imu::SharedPtr& imu,
+    const Eigen::Vector3f& t,
+    const Eigen::Matrix3f& R
+  );
+  void callbackAccelGyro(
+    const ros2can_msgs::msg::SbgEcanMsgImuAccel::ConstSharedPtr accel_msg,
+    const ros2can_msgs::msg::SbgEcanMsgImuGyro::ConstSharedPtr gyro_msg,
+    const ros2can_msgs::msg::SbgEcanMsgImuInfo::ConstSharedPtr timestamp_msg
+  );
   void callbackMission(const std_msgs::msg::Int16& msg);
 
   void publishPose();
@@ -98,7 +120,12 @@ private:
   void computeSpaciousness();
   void computeDensity();
 
-  sensor_msgs::msg::Imu::SharedPtr transformImu(const sensor_msgs::msg::Imu::SharedPtr& imu);
+  // sensor_msgs::msg::Imu::SharedPtr transformImu(const sensor_msgs::msg::Imu::SharedPtr& imu);
+  sensor_msgs::msg::Imu::SharedPtr transformImu(
+    const sensor_msgs::msg::Imu::SharedPtr& imu,
+    const Eigen::Vector3f& t,
+    const Eigen::Matrix3f& R
+  );
 
   void updateKeyframes();
   void computeConvexHull();
@@ -116,9 +143,16 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr lidar_sub;
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub;
   rclcpp::Subscription<std_msgs::msg::Int16>::SharedPtr mission_sub;
-  rclcpp::CallbackGroup::SharedPtr lidar_cb_group, imu_cb_group, mission_cb_group;
-  
+  message_filters::Subscriber<ros2can_msgs::msg::SbgEcanMsgImuAccel> accel_sub_;
+  message_filters::Subscriber<ros2can_msgs::msg::SbgEcanMsgImuGyro> gyro_sub_;
+  message_filters::Subscriber<ros2can_msgs::msg::SbgEcanMsgImuInfo> time_sub_;
+  std::shared_ptr<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<
+      ros2can_msgs::msg::SbgEcanMsgImuAccel,
+      ros2can_msgs::msg::SbgEcanMsgImuGyro,
+      ros2can_msgs::msg::SbgEcanMsgImuInfo>>> sync_;
 
+  rclcpp::CallbackGroup::SharedPtr lidar_cb_group, imu_cb_group, combined_imu_cb_group, mission_cb_group;
+  
   // Publishers
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub;
@@ -161,7 +195,7 @@ private:
   std::vector<std::pair<std::pair<Eigen::Vector3f, Eigen::Quaternionf>,
                         pcl::PointCloud<PointType>::ConstPtr>> keyframes;
   std::vector<rclcpp::Time> keyframe_timestamps;
-  std::vector<std::shared_ptr<const nano_gicp::CovarianceList>> keyframe_normals;
+  std::vector<std::shared_ptr<std::vector<Eigen::Matrix4d>>> keyframe_normals;
   std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f>> keyframe_transformations;
   std::mutex keyframes_mutex;
 
@@ -194,8 +228,9 @@ private:
 
   // Submap
   pcl::PointCloud<PointType>::ConstPtr submap_cloud;
-  std::shared_ptr<const nano_gicp::CovarianceList> submap_normals;
-  std::shared_ptr<const nanoflann::KdTreeFLANN<PointType>> submap_kdtree;
+  std::shared_ptr<std::vector<Eigen::Matrix4d>> submap_normals;
+
+  std::shared_ptr<small_gicp::KdTree<pcl::PointCloud<PointType>>> submap_kdtree;
 
   std::vector<int> submap_kf_idx_curr;
   std::vector<int> submap_kf_idx_prev;
@@ -218,9 +253,10 @@ private:
   double first_scan_stamp;
   double elapsed_time;
 
-  // GICP
-  nano_gicp::NanoGICP<PointType, PointType> gicp;
-  nano_gicp::NanoGICP<PointType, PointType> gicp_temp;
+  //Small GICP
+  small_gicp::RegistrationPCL<PointType, PointType> small_gicp;
+  small_gicp::RegistrationPCL<PointType, PointType> small_gicp_temp;
+  
 
   // Transformations
   Eigen::Matrix4f T, T_prior, T_corr;
@@ -234,8 +270,10 @@ private:
       Eigen::Matrix3f R;
     };
     SE3 baselink2imu;
+    SE3 baselink2ros2canimu;
     SE3 baselink2lidar;
     Eigen::Matrix4f baselink2imu_T;
+    Eigen::Matrix4f baselink2ros2canimu_T;
     Eigen::Matrix4f baselink2lidar_T;
   }; Extrinsics extrinsics;
 
@@ -314,6 +352,11 @@ private:
 
   // Parameters
   std::string version_;
+
+  bool debug_;
+
+  bool use_can_imu_;
+  
   int num_threads_;
 
   bool deskew_;

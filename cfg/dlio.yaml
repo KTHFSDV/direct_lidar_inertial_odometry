@@ -31,6 +31,12 @@
     extrinsics/baselink2imu/R: [ 1.,  0.,  0.,
                                  0.,  1.,  0.,
                                  0.,  0.,  1. ]
+    
+    extrinsics/baselink2ros2canimu/t: [ 0.71, 0.0, 0.316 ] 
+    extrinsics/baselink2ros2canimu/R: [-1.,  0.,  0.,
+                                         0.,  1.,  0.,
+                                         0.,  0., -1. ]
+                  
     extrinsics/baselink2lidar/t: [  0.542, 0., 1.048296 ]
     extrinsics/baselink2lidar/R: [ 1.,  0.,  0.,
                                    0.,  1.,  0.,

@@ -9,7 +9,7 @@
  * Contact: {kennyjchen, ryguyn, btlopez}@ucla.edu         *
  *                                                         *
  ***********************************************************/
-
+#pragma once
 // SYSTEM
 #include <atomic>
 
@@ -49,15 +49,17 @@ std::string to_string_with_precision(const T a_value, const int n = 6)
 
 // PCL
 #define PCL_NO_PRECOMPILE
-
-// DLIO
-#include <nano_gicp/nano_gicp.h>
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
 
 namespace dlio {
   enum class SensorType { OUSTER, VELODYNE, HESAI, LIVOX, UNKNOWN };
 
   class OdomNode;
   class MapNode;
+
+  using Matrix4fMap = Eigen::Map<Eigen::Matrix4f, Eigen::Aligned>;
+  using Matrix4fMapConst = const Eigen::Map<const Eigen::Matrix4f, Eigen::Aligned>;
 
   struct Point {
     Point(): data{0.f, 0.f, 0.f, 1.f} {}
@@ -70,6 +72,7 @@ namespace dlio {
     double timestamp;  // (Hesai) absolute timestamp in seconds
                        // (Livox) absolute timestamp in (seconds * 10e9)
     };
+
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   } EIGEN_ALIGN16;
 }

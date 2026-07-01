@@ -21,8 +21,6 @@ RUN apt-get update && apt-get upgrade -y && \
     git \
     nano \
     cmake \
-    python3-pip \
-    python3-colcon-common-extensions \
     libeigen3-dev \
     libomp-dev \
     libpcl-dev \
@@ -30,13 +28,6 @@ RUN apt-get update && apt-get upgrade -y && \
     ros-jazzy-tf2-eigen \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
-
-# (Optional) Install additional Python dependencies
-# RUN pip3 install --upgrade pip && \
-#     pip3 install \
-#     numpy \
-#     opencv-python \
-#     scikit-learn
 
 # Optional: Run a script to install extra dependencies
 # COPY scripts/install.sh scripts/

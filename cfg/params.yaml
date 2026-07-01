@@ -12,7 +12,11 @@
 
 /**:
   ros__parameters:
-    use_sim_time: false
+    debug: true
+
+    use_ros2can_imu: false
+
+    use_sim_time: true
     frames/odom: odom
     frames/baselink: base_link
     frames/lidar: os_sensor
@@ -31,8 +35,8 @@
     odom/imu/calibration/time: 3.0
     odom/imu/bufferSize: 5000
 
-    odom/preprocessing/cropBoxFilter/size: 1.0
-    odom/preprocessing/voxelFilter/res: 0.25
+    odom/preprocessing/cropBoxFilter/size: 3.0
+    odom/preprocessing/voxelFilter/res: 1.0
 
     odom/keyframe/threshD: 1.0
     odom/keyframe/threshR: 45.0
