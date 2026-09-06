@@ -26,6 +26,7 @@ RUN apt-get update && apt-get upgrade -y && \
     libpcl-dev \
     ros-jazzy-pcl-ros \
     ros-jazzy-tf2-eigen \
+    ros-jazzy-rmw-cyclonedds-cpp \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
