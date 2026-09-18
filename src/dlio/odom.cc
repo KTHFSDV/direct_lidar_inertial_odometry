@@ -13,7 +13,6 @@
 #include "dlio/odom.h"
 #include "dlio/utils.h"
 
-#include <proxsuite/proxqp/dense/dense.hpp>
 #include <iostream>
 
 #include <queue>
