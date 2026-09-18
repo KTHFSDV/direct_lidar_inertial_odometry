@@ -41,7 +41,7 @@ dlio::OdomNode::OdomNode() : Node("dlio_odom_node") {
   auto lidar_sub_opt = rclcpp::SubscriptionOptions();
   lidar_sub_opt.callback_group = this->lidar_cb_group;
   this->lidar_sub = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-    "pointcloud", rclcpp::SensorDataQoS(1), std::bind(&dlio::OdomNode::callbackPointCloud, this, std::placeholders::_1));
+    "pointcloud", rclcpp::SensorDataQoS().keep_last(1), std::bind(&dlio::OdomNode::callbackPointCloud, this, std::placeholders::_1));
 
   this->mission_cb_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   auto mission_sub_opt = rclcpp::SubscriptionOptions();
@@ -83,7 +83,7 @@ dlio::OdomNode::OdomNode() : Node("dlio_odom_node") {
     imu_sub_opt.callback_group = this->imu_cb_group;
 
     this->imu_sub = this->create_subscription<sensor_msgs::msg::Imu>(
-      "imu", rclcpp::SensorDataQoS(1000), std::bind(&dlio::OdomNode::callbackImu, this, std::placeholders::_1), imu_sub_opt);
+      "imu", rclcpp::SensorDataQoS().keep_last(100), std::bind(&dlio::OdomNode::callbackImu, this, std::placeholders::_1), imu_sub_opt);
   }
 
   this->odom_pub     = this->create_publisher<nav_msgs::msg::Odometry>("odom", 1);
@@ -237,10 +237,10 @@ void dlio::OdomNode::getParams() {
   dlio::declare_param<bool>(this, "use_can_imu", this->use_can_imu_, false);
 
   // Frames
-  dlio::declare_param(this, "frames/odom", this->odom_frame, "odom");
-  dlio::declare_param(this, "frames/baselink", this->baselink_frame, "base_link");
-  dlio::declare_param(this, "frames/lidar", this->lidar_frame, "os_sensor");
-  dlio::declare_param(this, "frames/imu", this->imu_frame, "os_imu");
+  dlio::declare_param(this, "frames/odom", this->odom_frame, std::string("odom"));
+  dlio::declare_param(this, "frames/baselink", this->baselink_frame, std::string("base_link"));
+  dlio::declare_param(this, "frames/lidar", this->lidar_frame, std::string("os_sensor"));
+  dlio::declare_param(this, "frames/imu", this->imu_frame, std::string("os_imu"));
 
   std::string ns = this->get_namespace();
   if (!ns.empty() && ns[0] == '/') {
